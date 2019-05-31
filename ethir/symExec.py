@@ -446,6 +446,7 @@ def collect_vertices(tokens):
     for tok_type, tok_string, (srow, scol), _, line_number in tokens:
         if wait_for_push is True:
             push_val = ""
+
             for ptok_type, ptok_string, _, _, _ in tokens:
                 if ptok_type == NEWLINE:
                     is_new_line = True
@@ -3108,7 +3109,7 @@ def get_scc(edges):
         scc_multiple.update(scc)
         return scc_multiple
     
-def run(disasm_file=None, source_file=None, source_map=None, cfg=None, saco = None, execution = None,cname = None, hashes = None, debug = None,t_exs = None,ms_unknown=False,evm_version = False,cfile = None,svc = None,go = None):
+def run(disasm_file=None, disasm_file_init = None,  source_file=None, source_map=None, cfg=None, saco = None, execution = None,cname = None, hashes = None, debug = None,t_exs = None,ms_unknown=False,evm_version = False,cfile = None,svc = None,go = None):
     global g_disasm_file
     global g_source_file
     global g_src_map
@@ -3125,7 +3126,7 @@ def run(disasm_file=None, source_file=None, source_map=None, cfg=None, saco = No
     g_disasm_file = disasm_file
     g_source_file = source_file
     g_src_map = source_map
-
+    
     initGlobalVars()
 
     name = cname
