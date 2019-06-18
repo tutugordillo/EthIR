@@ -375,12 +375,12 @@ class BasicBlock:
         self.div_invalid_pattern = True
     
     def add_stack(self,s):
-        s_aux = filter(lambda x: isinstance(x,int),s)
+        s_aux = filter(lambda x: isinstance(x,tuple),s)
         if not(s_aux in self.stacks_old):
             self.stacks_old.append(s_aux)
 
     def known_stack(self,s):
-        s_aux = filter(lambda x: isinstance(x,int),s)
+        s_aux = filter(lambda x: isinstance(x,tuple),s)
         return (s_aux in self.stacks_old)
 
     def get_stacks(self):
