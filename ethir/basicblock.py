@@ -30,8 +30,7 @@ class BasicBlock:
         self.clone = False
         self.string_getter = False
         self.cost = 0
-        self.unknown_mstore = False
-        self.transitive_mstore = False
+        #self.transitive_mstore = False
         self.access_array = False
         self.assertfail_in_getter = False
         self.div_invalid_pattern = False
@@ -295,8 +294,8 @@ class BasicBlock:
                 mload +=1
             elif instr[:6] == "MSTORE": #MSTORE8
                 val = self._get_concrete_value("mstore",mstore)
-                if val == "?":
-                    self.unknown_mstore = True
+                # if val == "?":
+                #     self.unknown_mstore = True
                 new_instr = instr + " " + val
                 mstore+=1
             elif instr == "SLOAD":
@@ -315,20 +314,20 @@ class BasicBlock:
         
         self.instructions = new_instructions
 
-    def is_mstore_unknown(self):
-        return self.unknown_mstore
+    # def is_mstore_unknown(self):
+    #     return self.unknown_mstore
 
-    def set_unknown_mstore(self,val):
-        self.unknown_mstore = val
+    # def set_unknown_mstore(self,val):
+    #     self.unknown_mstore = val
         
-    def act_trans_mstore(self):
-        self.transitive_mstore = True
+    # def act_trans_mstore(self):
+    #     self.transitive_mstore = True
 
-    def get_trans_mstore(self):
-        return self.transitive_mstore
+    # def get_trans_mstore(self):
+    #     return self.transitive_mstore
 
-    def set_trans_mstore(self,val):
-        self.transitive_mstore = val
+    # def set_trans_mstore(self,val):
+    #     self.transitive_mstore = val
         
     def get_stack_info(self):
         return self.stack_info
@@ -419,8 +418,8 @@ class BasicBlock:
         new_obj.set_stack_info(list(self.stack_info))
         new_obj.set_cloning(self.clone)
         new_obj.set_string_getter(self.string_getter)
-        new_obj.set_unknown_mstore(self.unknown_mstore)
-        new_obj.set_trans_mstore(self.transitive_mstore)
+        # new_obj.set_unknown_mstore(self.unknown_mstore)
+        # new_obj.set_trans_mstore(self.transitive_mstore)
         new_obj.set_access_array(self.access_array)
         new_obj.set_div_invalid_pattern(self.div_invalid_pattern)
         new_obj.set_assertfail_in_getter(self.assertfail_in_getter)

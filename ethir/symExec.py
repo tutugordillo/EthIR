@@ -317,54 +317,54 @@ def update_block_info():
         block.set_stack_info(stack_h[block.get_start_address()])
         block.update_instr()
 
-def compute_transitive_mstore_value():
-    for block in vertices.values():
-        spawn_unknown_mstore(block)
+# def compute_transitive_mstore_value():
+#     for block in vertices.values():
+#         spawn_unknown_mstore(block)
         
         
-def spawn_unknown_mstore(block):
-    if block.is_mstore_unknown():
-        t = block.get_block_type()
-        if t == "conditional":
-            jump = block.get_jump_target()
-            falls = block.get_falls_to()
-            l = [jump]
-            propagate_mstore_unknown(jump,l)
-            propagate_mstore_unknown(falls,l)
-        elif  t == "unconditional":
-            jump = block.get_jump_target()
-            propagate_mstore_unknown(jump,[jump])
-        elif t == "falls_to":
-            falls = block.get_falls_to()
-            propagate_mstore_unknown(falls,[falls])
+# def spawn_unknown_mstore(block):
+#     if block.is_mstore_unknown():
+#         t = block.get_block_type()
+#         if t == "conditional":
+#             jump = block.get_jump_target()
+#             falls = block.get_falls_to()
+#             l = [jump]
+#             propagate_mstore_unknown(jump,l)
+#             propagate_mstore_unknown(falls,l)
+#         elif  t == "unconditional":
+#             jump = block.get_jump_target()
+#             propagate_mstore_unknown(jump,[jump])
+#         elif t == "falls_to":
+#             falls = block.get_falls_to()
+#             propagate_mstore_unknown(falls,[falls])
             
-def propagate_mstore_unknown(block_addr,visited):
-    block = vertices[block_addr]
-    block.act_trans_mstore()
-    if block.get_block_type() == "terminal":
-        visited.append(block)
-    elif block.get_block_type() == "conditional":
-        jump = block.get_jump_target()
-        if jump not in visited:
-            visited.append(jump)
-            propagate_mstore_unknown(jump,visited)
+# def propagate_mstore_unknown(block_addr,visited):
+#     block = vertices[block_addr]
+#     block.act_trans_mstore()
+#     if block.get_block_type() == "terminal":
+#         visited.append(block)
+#     elif block.get_block_type() == "conditional":
+#         jump = block.get_jump_target()
+#         if jump not in visited:
+#             visited.append(jump)
+#             propagate_mstore_unknown(jump,visited)
 
-        falls = block.get_falls_to()
-        if falls not in visited:
-            visited.append(falls)
-            propagate_mstore_unknown(falls,visited)
+#         falls = block.get_falls_to()
+#         if falls not in visited:
+#             visited.append(falls)
+#             propagate_mstore_unknown(falls,visited)
             
-    elif block.get_block_type() == "unconditional":
-        jump = block.get_jump_target()
-        if jump not in visited:
-            visited.append(jump)
-            propagate_mstore_unknown(jump,visited)
+#     elif block.get_block_type() == "unconditional":
+#         jump = block.get_jump_target()
+#         if jump not in visited:
+#             visited.append(jump)
+#             propagate_mstore_unknown(jump,visited)
 
-    elif block.get_block_type() == "falls_to":
-        falls = block.get_falls_to()
-        if falls not in visited:
-            visited.append(falls)
-            propagate_mstore_unknown(falls,visited)
+#     elif block.get_block_type() == "falls_to":
+#         falls = block.get_falls_to()
+#         if falls not in visited:
+#             visited.append(falls)
+#             propagate_mstore_unknown(falls,visited)
 
 #Added by Pablo Gordillo
 def print_cfg():
@@ -3189,7 +3189,7 @@ def run(disasm_file=None, disasm_file_init = None,  source_file=None, source_map
     begin1 = dtimer()
     compute_component_of_cfg()
     
-    compute_transitive_mstore_value()
+    #    compute_transitive_mstore_value()
     # end = dtimer()
     # print("Component performance: "+str(end-begin1)+"s")
     
