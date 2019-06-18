@@ -765,27 +765,3 @@ def compute_cloning(blocks_to_clone,blocks_input,stack_info,component_of):
         #print "CLONED: "+str(cloned)+"\n"
 
 
-# def compute_cloning(blocks_to_clone,blocks_input,stack_info):
-#     global stack_index
-    
-#     init()
-#     blocks_dict = blocks_input
-#     stack_index = stack_info
-    
-#     blocks2clone = sorted(blocks_to_clone, key = getLevel)
-
-#     print "AQUI"
-#     for e in blocks2clone:
-#         print e.get_start_address()
-#         print e.get_depth_level()
-
-#     for b in blocks2clone:
-#         clone(b,blocks_dict)
-
-#     # print "AQUI"
-#     # blocks_dict['4416_1'].display()
-#     # for e in blocks_dict.values():
-#     #     e.display()
-#     #return stack_index
-
-    
