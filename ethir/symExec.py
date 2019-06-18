@@ -24,7 +24,7 @@ import global_params
 
 import rbr
 from clone import compute_cloning
-from utils import cfg_dot, write_cfg, update_map, get_public_fields, getLevel
+from utils import cfg_dot, write_cfg, update_map, get_public_fields, getLevel, get_push_value
 from opcodes import get_opcode
 from graph_scc import Graph_SCC, get_entry_all,filter_nested_scc
 from pattern import look_for_string_pattern,check_sload_fragment_pattern,sstore_fragment
@@ -295,9 +295,19 @@ def build_cfg_and_analyze(evm_version):
         construct_static_edges()
         #print_cfg()
         full_sym_exec()  # jump targets are constructed on the fly
-
+        # for e in push_jump_relations.keys():
+        #     print "BLOCK"
+        #     print e
+        #     for j in push_jump_relations[e].keys():
+        #         print "JUMP ADDRESS"
+        #         print j
+        #         print "PUSH"
+        #         print push_jump_relations[e][j]
+            
     delete_uncalled()
     update_block_info()
+    build_push_jump_relations()
+    
 
 
 #Added by Pablo Gordillo
@@ -314,6 +324,23 @@ def update_block_info():
         block.set_stack_info(stack_h[block.get_start_address()])
         block.update_instr()
 
+def build_push_jump_relations():
+    global push_jump_relations
+
+    old_dict = push_jump_relations
+    push_jump_relations = {}
+
+    for block in blocks_to_clone:
+        rel = old_dict[block.get_start_address()]
+        for jump_address in rel.keys():
+            push_jump_relations[jump_address] = rel[jump_address]
+
+    # for e in push_jump_relations.keys():
+    #     print "JUMP ADDRESS"
+    #     print e
+    #     print "PUSH ADDRESSES"
+    #     print push_jump_relations[e]
+        
 #Added by Pablo Gordillo
 def print_cfg():
     vert = sorted(vertices.values(), key = getKey)
@@ -726,7 +753,6 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
     global scc_unary
     global getter_blocks
 
-
     
     visited = params.visited
     stack = params.stack
@@ -905,7 +931,6 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
                 if vertices[successor].get_depth_level()<(current_level+1): 
                     vertices[successor].set_depth_level(current_level+1)
                     update_depth_level(successor,current_level+1,[])
-
                     
         else:
             if successor not in blocks_to_create:
@@ -919,6 +944,7 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
         new_params.global_state["pc"] = successor
         if not(vertices[successor].known_stack(list(stack))):
             path.append((block,successor))
+            
             sym_exec_block(new_params, successor, block, depth, func_call,current_level+1,path)
             path.pop()
         else:
@@ -926,23 +952,7 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
             if vertices[successor].get_depth_level()<(current_level+1):
                 vertices[successor].set_depth_level(current_level+1)
                 update_depth_level(successor,current_level+1,[])
-            # if (((block,successor) not in path)):
-        #     if potential_jump:
-        #         potential_jump = False
-        #     path.append((block,successor))
-        #     sym_exec_block(new_params, successor, block, depth, func_call,level+1,path)
-        #     path.pop()
-        # else:
-        #     # if not potential_jump:
-        #     #     potential_jump = True
-        #     if not(vertices[successor].known_stack(list(stack))):
-        #         path.append((block,successor))
-        #         sym_exec_block(new_params, successor, block, depth, func_call,level+1,path)
-        #         path.pop()
-        #     # else:
-        #     #     print "PASO"
-        #     # else:
-        #     #     potential_jump = False
+
     elif jump_type[block] == "conditional":  # executing "JUMPI"
 
         # A choice point, we proceed with depth first search
@@ -1068,6 +1078,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
     global potential_jump
     global indirect_jump
     global param_abs
+    global push_jump_relations
     
     stack = params.stack
     mem = params.mem
@@ -1087,24 +1098,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         return
     elif opcode == "ASSERTFAIL":
         
-        # if g_src_map:
-        #     source_code = g_src_map.get_source_code(global_state['pc'])
-        #     source_code = source_code.split("(")[0]
-        #     func_name = source_code.strip()
-        #     if check_sat(solver, False) != unsat:
-        #         model = solver.model()
-        #     if func_name == "assert":
-        #         global_problematic_pcs["assertion_failure"].append(Assertion(global_state["pc"], model))
-        #     elif func_call != -1:
-        #         global_problematic_pcs["assertion_failure"].append(Assertion(func_call, model))
         return
-
-    # collecting the analysis result by calling this skeletal function
-    # this should be done before symbolically executing the instruction,
-    # since SE will modify the stack and mem
-    #update_analysis(analysis, opcode, stack, mem, global_state, path_conditions_and_vars, solver)
-    # if opcode == "CALL" and analysis["reentrancy_bug"] and analysis["reentrancy_bug"][-1]:
-    #     global_problematic_pcs["reentrancy_bug"].append(global_state["pc"])
 
     log.debug("==============================")
     log.debug("EXECUTING: " + instr)
@@ -1120,6 +1114,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
             # Type conversion is needed when they are mismatched
             if isReal(first) and isSymbolic(second):
                 first = BitVecVal(first, 256)
@@ -1140,6 +1137,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+            
+            first = get_push_value(first)
+            second = get_push_value(second)
+
             if isReal(first) and isSymbolic(second):
                 first = BitVecVal(first, 256)
             elif isSymbolic(first) and isReal(second):
@@ -1154,6 +1155,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isReal(first) and isSymbolic(second):
                 first = BitVecVal(first, 256)
                 computed = first - second
@@ -1171,6 +1176,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if second == 0:
                     computed = 0
@@ -1197,6 +1206,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 first = to_signed(first)
                 second = to_signed(second)
@@ -1239,6 +1252,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if second == 0:
                     computed = 0
@@ -1269,6 +1286,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if second == 0:
                     computed = 0
@@ -1312,6 +1333,11 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             second = stack.pop(0)
             third = stack.pop(0)
 
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            third = get_push_value(third)
+            
             if isAllReal(first, second, third):
                 if third == 0:
                     computed = 0
@@ -1342,6 +1368,11 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             second = stack.pop(0)
             third = stack.pop(0)
 
+            first = get_push_value(first)
+            second = get_push_value(second)
+            third = get_push_value(third)
+
+            
             if isAllReal(first, second, third):
                 if third == 0:
                     computed = 0
@@ -1368,6 +1399,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             base = stack.pop(0)
             exponent = stack.pop(0)
+
+            base = get_push_value(base)
+            exponent = get_push_value(exponent)
+            
             # Type conversion is needed when they are mismatched
             if isAllReal(base, exponent):
                 computed = pow(base, exponent, 2**256)
@@ -1385,6 +1420,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if first >= 32 or first < 0:
                     computed = second
@@ -1423,6 +1462,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 first = to_unsigned(first)
                 second = to_unsigned(second)
@@ -1441,6 +1484,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 first = to_unsigned(first)
                 second = to_unsigned(second)
@@ -1459,6 +1506,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 first = to_signed(first)
                 second = to_signed(second)
@@ -1477,6 +1528,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 first = to_signed(first)
                 second = to_signed(second)
@@ -1495,6 +1550,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if first == second:
                     computed = 1
@@ -1513,6 +1572,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 0:
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
+
+            first = get_push_value(first)
+            
             if isReal(first):
                 if first == 0:
                     computed = 1
@@ -1529,6 +1591,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
             second = stack.pop(0)
+
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             computed = first & second
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
@@ -1540,6 +1606,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             first = stack.pop(0)
             second = stack.pop(0)
 
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             computed = first | second
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
@@ -1552,6 +1621,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             first = stack.pop(0)
             second = stack.pop(0)
 
+            first = get_push_value(first)
+            second = get_push_value(second)
+            
             computed = first ^ second
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
@@ -1562,6 +1634,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 0:
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
+
+            first = get_push_value(first)
+            
             computed = (~first) & UNSIGNED_BOUND_NUMBER
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
@@ -1571,9 +1646,14 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 1:
             global_state["pc"] = global_state["pc"] + 1
             first = stack.pop(0)
+
+            first = get_push_value(first)
+            
             byte_index = 32 - first - 1
             second = stack.pop(0)
 
+            second = get_push_value(second)
+            
             if isAllReal(first, second):
                 if first >= 32 or first < 0 or byte_index < 0:
                     computed = 0
@@ -1603,6 +1683,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             s0 = stack.pop(0)
             s1 = stack.pop(0)
+
+            s0 = get_push_value(s0)
+            s1 = get_push_value(s1)
             # if isAllReal(s0, s1):
             #     # simulate the hashing of sha3
             #     data = [str(x) for x in memory[s0: s0 + s1]]
@@ -1636,6 +1719,8 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 0:
             global_state["pc"] = global_state["pc"] + 1
             address = stack.pop(0)
+            address = get_push_value(address)
+
             if isReal(address) and global_params.USE_GLOBAL_BLOCKCHAIN:
                 new_var = data_source.getBalance(address)
             else:
@@ -1667,6 +1752,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 0:
             global_state["pc"] = global_state["pc"] + 1
             position = stack.pop(0)
+
+            position = get_push_value(position)
+
             if g_src_map:
                 source_code = g_src_map.get_source_code(global_state['pc'] - 1)
                 if source_code.startswith("function") and isReal(position):
@@ -1759,6 +1847,11 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             mem_location = stack.pop(0)
             code_from = stack.pop(0)
             no_bytes = stack.pop(0)
+
+            mem_location = get_push_value(mem_location)
+            code_from = get_push_value(code_from)
+            no_bytes = get_push_value(no_bytes)
+
             current_miu_i = global_state["miu_i"]
 
             if isAllReal(mem_location, current_miu_i, code_from, no_bytes):
@@ -1824,6 +1917,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         if len(stack) > 0:
             global_state["pc"] = global_state["pc"] + 1
             address = stack.pop(0)
+
+            address = get_push_value(address)
+
             if isReal(address) and global_params.USE_GLOBAL_BLOCKCHAIN:
                 code = data_source.getCode(address)
                 stack.insert(0, len(code)/2)
@@ -1846,6 +1942,12 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             mem_location = stack.pop(0)
             code_from = stack.pop(0)
             no_bytes = stack.pop(0)
+
+            address = get_push_value(address)
+            mem_location = get_push_value(mem_location)
+            code_from = get_push_value(code_from)
+            no_bytes = get_push_value(no_bytes)
+            
             current_miu_i = global_state["miu_i"]
 
             if isAllReal(address, mem_location, current_miu_i, code_from, no_bytes) and USE_GLOBAL_BLOCKCHAIN:
@@ -1929,6 +2031,8 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             address = stack.pop(0)
 
+            address = get_push_value(address)
+
             #Added by Pablo Gordillo
             vertices[block].add_ls_value("mload",ls_cont[0],address)
             ls_cont[0]+=1
@@ -1973,6 +2077,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             stored_address = stack.pop(0)
             stored_value = stack.pop(0)
 
+            stored_address = get_push_value(stored_address)
+            stored_value = get_push_value(stored_value)
+            
             #Added by Pablo Gordillo
             vertices[block].add_ls_value("mstore",ls_cont[1],stored_address)
             ls_cont[1]+=1
@@ -2015,6 +2122,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             stored_address = stack.pop(0)
             temp_value = stack.pop(0)
+
+            stored_address = get_push_value(stored_address)
+            temp_value = get_push_value(temp_value)
+            
             stored_value = temp_value % 256  # get the least byte
 
             vertices[block].add_ls_value("mstore",ls_cont[1],stored_address)
@@ -2053,6 +2164,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             p_s,v = check_sload_fragment_pattern(vertices[block],instr_index,stack)
             
             position = stack.pop(0)
+            position = get_push_value(position)
 
             #Added by Pablo Gordillo
             if p_s:
@@ -2106,6 +2218,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             stored_address = stack.pop(0)
             stored_value = stack.pop(0)
 
+            stored_address = get_push_value(stored_address)
+            stored_value = get_push_value(stored_value)
+            
             #Added by Pablo Gordillo
             p_s, v = sstore_fragment(vertices[block],instr_index)
             if p_s:
@@ -2123,7 +2238,22 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             raise ValueError('STACK underflow')
     elif opcode == "JUMP":
         if len(stack) > 0:
-            target_address = stack.pop(0)
+            push_address = stack.pop(0)
+            target_address,push_block = push_address
+
+            #Define push-jump relations for cloning
+
+#            print target_address
+            
+            rel = push_jump_relations.get(block,{})
+            addresses = rel.get(target_address,[])
+            if addresses != []:
+                if push_block not in addresses:
+                    rel[target_address] = addresses.append(push_block)
+            else:
+                rel[target_address] = [push_block]
+
+            push_jump_relations[block] = rel
 
             vertices[block].set_jump_target(target_address)
 
@@ -2135,6 +2265,8 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
         # We need to prepare two branches
         if len(stack) > 1:
             target_address = stack.pop(0)
+            target_address = get_push_value(target_address)
+
             if isSymbolic(target_address):
                 try:
                     target_address = int(str(simplify(target_address)))
@@ -2148,10 +2280,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
                     branch_expression = True
             else:
                 branch_expression = (flag != 0)
-            # if (function_info[0]):
-            #     name = function_info[1]
-            #     function_block_map[name]=target_address
-            #     function_info = (False,"")
+
             vertices[block].set_branch_expression(branch_expression)
             if target_address not in edges[block]:
                 edges[block].append(target_address)
@@ -2191,7 +2320,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
 
         
         pushed_value = int(instr_parts[1], 16)
-        stack.insert(0, pushed_value)
+        stack.insert(0, (pushed_value,block))
         if global_params.UNIT_TEST == 3: # test evm symbolic
             stack[0] = BitVecVal(stack[0], 256)
     #
@@ -2258,7 +2387,15 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             start_data_input = stack.pop(0)
             size_data_input = stack.pop(0)
             start_data_output = stack.pop(0)
-            size_data_ouput = stack.pop(0)
+            size_data_output = stack.pop(0)
+
+            outgas = get_push_value(outgas)
+            recipient = get_push_value(recipient)
+            transfer_amount = get_push_value(transfer_amount)
+            start_data_input = get_push_value(start_data_input)
+            size_data_input = get_push_value(size_data_input)
+            start_data_output = get_push_value(start_data_output)
+            size_data_output = get_push_value(size_data_output)
             # in the paper, it is shaky when the size of data output is
             # min of stack[6] and the | o |
 
@@ -2326,6 +2463,10 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] = global_state["pc"] + 1
             outgas = stack.pop(0)
             recipient = stack.pop(0) # this is not used as recipient
+
+            outgas = get_push_value(outgas)
+            recipient = get_push_value(recipient)
+            
             if global_params.USE_GLOBAL_STORAGE:
                 if isReal(recipient):
                     recipient = hex(recipient)
@@ -2339,7 +2480,14 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             start_data_input = stack.pop(0)
             size_data_input = stack.pop(0)
             start_data_output = stack.pop(0)
-            size_data_ouput = stack.pop(0)
+            size_data_output = stack.pop(0)
+
+            transfer_amount = get_push_value(transfer_amount)
+            start_data_input = get_push_value(start_data_input)
+            size_data_input = get_push_value(size_data_input)
+            start_data_output = get_push_value(start_data_output)
+            size_data_output = get_push_value(size_data_output)
+            
             # in the paper, it is shaky when the size of data output is
             # min of stack[6] and the | o |
 
@@ -2375,6 +2523,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             global_state["pc"] += 1
             stack.pop(0)
             recipient = stack.pop(0)
+            
+            recipient = get_push_value(recipient)
+
             if global_params.USE_GLOBAL_STORAGE:
                 if isReal(recipient):
                     recipient = hex(recipient)
@@ -2406,6 +2557,7 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
     elif opcode == "SUICIDE":
         global_state["pc"] = global_state["pc"] + 1
         recipient = stack.pop(0)
+        recipient = get_push_value(recipient)
         transfer_amount = global_state["balance"]["Ia"]
         global_state["balance"]["Ia"] = 0
         if isReal(recipient):
@@ -2805,11 +2957,6 @@ def run(disasm_file=None, disasm_file_init = None,  source_file=None, source_map
 
     
     check_cfg_option(cfg,cname,execution)
-
-    # for e in blocks_to_clone:
-    #     print e.get_start_address()
-    #     print e.get_depth_level()
-
         
     blocks2clone = sorted(blocks_to_clone, key = getLevel)
     for e in blocks2clone:
@@ -2817,31 +2964,19 @@ def run(disasm_file=None, disasm_file_init = None,  source_file=None, source_map
 
 
     compute_component_of_cfg()
-    # try:
-    #     compute_cloning(blocks_to_clone,vertices,stack_h)
-    # except:
-    #     raise Exception("Error in clonning process",3)
     
     if len(blocks_to_clone)!=0:
         try:
             compute_cloning(blocks_to_clone,vertices,stack_h,component_of_blocks)
         except:
-            #traceback.print_exc()
+            traceback.print_exc()
             raise Exception("Error in clonning process",3)
         
-    # for e in vertices.values():
-    #     e.display()
-
-    
     check_cfg_option(cfg,cname,execution,True,blocks_to_clone)
     
     begin1 = dtimer()
     compute_component_of_cfg()
-    
-    #    compute_transitive_mstore_value()
-    # end = dtimer()
-    # print("Component performance: "+str(end-begin1)+"s")
-    
+        
     end = dtimer()
     oyente_t = end-begin
     print("OYENTE tool: "+str(oyente_t)+"s")
