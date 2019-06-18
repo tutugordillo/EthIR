@@ -382,7 +382,8 @@ class BasicBlock:
 
     def known_stack(self,s):
         s_aux = filter(lambda x: isinstance(x,tuple),s)
-        return (s_aux in self.stacks_old)
+        is_in = self._is_in_old_stacks(s_aux)
+        return is_in
 
     def _is_in_old_stacks(self,stack):
         jump_addresses = map(lambda x: x[0],stack)
