@@ -213,9 +213,6 @@ def initGlobalVars():
     global blocks_to_clone
     blocks_to_clone = []
 
-    global procesed_indirect_jumps
-    procesed_indirect_jumps = {}
-
     global name
     name = ""
 
@@ -239,6 +236,9 @@ def initGlobalVars():
 
     global invalid_option
     invalid_option = ""
+
+    global push_jump_relations
+    push_jump_relations = {}
     
 def is_testing_evm():
     return global_params.UNIT_TEST != 0
@@ -721,7 +721,6 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
     global blocks_to_create
     global ls_cont
     global potential_jump
-    global procesed_indirect_jumps
     global function_info
     global param_abs
     global scc_unary
@@ -897,43 +896,16 @@ def sym_exec_block(params, block, pre_block, depth, func_call,level,path):
         if successor in vertices:
 
             vertices[successor].add_origin(block) #to compute which are the blocks that leads to successor
-            proc = procesed_indirect_jumps.get(successor,[])
 
             if not(vertices[successor].known_stack(list(stack))):
                 path.append((block,successor))
                 sym_exec_block(new_params, successor, block, depth, func_call,current_level+1,path)
-                procesed_indirect_jumps = update_map(procesed_indirect_jumps,block,successor)
                 path.pop()
             else:
                 if vertices[successor].get_depth_level()<(current_level+1): 
                     vertices[successor].set_depth_level(current_level+1)
                     update_depth_level(successor,current_level+1,[])
-                # if ((block,successor) not in path):
-            #     # if potential_jump:
-            #     #     potential_jump = False
-            #     path.append((block,successor))
-            #     sym_exec_block(new_params, successor, block, depth, func_call,level+1,path)
-            #     procesed_indirect_jumps = update_map(procesed_indirect_jumps,block,successor)
-            #     path.pop()
-            # else : #the pair is in the path
-            #     if not(vertices[successor].known_stack(list(stack))):
-            #     # if not potential_jump:
-            #     #     potential_jump = True
-            #         path.append((block,successor))
-            #         sym_exec_block(new_params, successor, block, depth, func_call,level+1,path)
-            #         path.pop()
-                # else:
-                #     print "PASO"
-                # else:
-            
-                #     potential_jump = False
-                #     if not(vertices[successor].is_direct_block()):
-                #         print "ENTRARIA con"+str(successor)
-                #         if stack[indirect_jump[successor]] not in proc:
-                #             path.append((block,successor))
-                #             sym_exec_block(new_params, successor, block, depth, func_call,level+1,path)
-                #             path.pop()
-                    #if stack[indirect_jump[successor]] not in proc:
+
                     
         else:
             if successor not in blocks_to_create:
