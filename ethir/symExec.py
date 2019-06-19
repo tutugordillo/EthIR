@@ -239,6 +239,9 @@ def initGlobalVars():
 
     global push_jump_relations
     push_jump_relations = {}
+
+    global jump_addresses
+    jump_addresses = []
     
 def is_testing_evm():
     return global_params.UNIT_TEST != 0
@@ -303,7 +306,13 @@ def build_cfg_and_analyze(evm_version):
         #         print j
         #         print "PUSH"
         #         print push_jump_relations[e][j]
-            
+
+    # for e in vertices.keys():
+    #     print "BLOQUE "+str(vertices[e].get_start_address())
+    #     p = vertices[e].get_paths()
+    #     if len(p) > 1:
+    #         print p
+        
     delete_uncalled()
     update_block_info()
     build_push_jump_relations()
@@ -335,6 +344,10 @@ def build_push_jump_relations():
         for jump_address in rel.keys():
             push_jump_relations[jump_address] = rel[jump_address]
 
+
+    # for e in push_jump_relations.keys():
+    #     print "JUMP ADDRESS: "+str(e)
+    #     print "PUSH BLOCKS: "+str(push_jump_relations[e])
     # for e in push_jump_relations.keys():
     #     print "JUMP ADDRESS"
     #     print e
@@ -1079,6 +1092,8 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
     global indirect_jump
     global param_abs
     global push_jump_relations
+    global jump_addresses
+
     
     stack = params.stack
     mem = params.mem
@@ -2241,10 +2256,9 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             push_address = stack.pop(0)
             target_address,push_block = push_address
 
-            #Define push-jump relations for cloning
-
-#            print target_address
+            jump_addresses.append(target_address)
             
+            #Define push-jump relations for cloning
             rel = push_jump_relations.get(block,{})
             addresses = rel.get(target_address,[])
             if addresses != []:
