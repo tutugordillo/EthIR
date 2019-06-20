@@ -771,12 +771,11 @@ def get_path(block2clone,push_block,jump_block):
     paths = block2clone.get_paths()
     i = 0
     found = False
+    
     while((i<len(paths)) and (not found)):
-        source_nodes = map(lambda x: x[0],p)
-        target_nodes = map(lambda x: x[1],p)
-
-        init = get_elem_index(sources_nodes,push_block)
-        fin = get_elem_index (target_nodes,jump_block)
+        p = paths[i]
+        init = get_elem_index(p,push_block)
+        fin = get_elem_index (p,jump_block)
 
         if ((init!=-1) and (fin != -1)) and (init < fin):
             found = True
