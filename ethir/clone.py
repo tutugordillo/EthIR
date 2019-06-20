@@ -1,5 +1,5 @@
 import opcodes
-from utils import getLevel, getKey
+from utils import getLevel, getKey, get_elem_index
 import os
 from dot_tree import Tree, build_tree
 
@@ -96,7 +96,8 @@ def is_correct_preprocess_push(b,addresses,blocks_input):
 
 def get_address_from_stacks(addresses,stacks):
     r = []
-    for s in stacks:
+    s_aux = map(lambda x: map(lambda y: y[0], x), stacks)
+    for s in s_aux:
         new = filter(lambda x: x in s,addresses)
         if new not in r:
             r.append(new)
@@ -765,3 +766,26 @@ def compute_cloning(blocks_to_clone,blocks_input,stack_info,component_of):
         #print "CLONED: "+str(cloned)+"\n"
 
 
+#####################################################################
+def get_path(block2clone,push_block,jump_block):
+    paths = block2clone.get_paths()
+    i = 0
+    found = False
+    while((i<len(paths)) and (not found)):
+        source_nodes = map(lambda x: x[0],p)
+        target_nodes = map(lambda x: x[1],p)
+
+        init = get_elem_index(sources_nodes,push_block)
+        fin = get_elem_index (target_nodes,jump_block)
+
+        if ((init!=-1) and (fin != -1)) and (init < fin):
+            found = True
+
+        i+=1
+
+
+    if not found:
+        raise Exception("Path push-jump not found.")
+
+    path = paths[i-1]
+    return path[init:fin+1]
