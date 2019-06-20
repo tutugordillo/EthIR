@@ -624,6 +624,8 @@ def translateOpcodes50(opcode, value, index_variables,block):
         _ , updated_variables = get_consume_variable(index_variables)
         v1, updated_variables = get_new_variable(updated_variables)
         try:
+            print "OPCODE"
+            print value
             l_idx = get_local_variable(value)
             instr = v1+ " = " + "l(l"+str(l_idx)+")"
             update_local_variables(l_idx,block)
