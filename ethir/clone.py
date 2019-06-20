@@ -1,5 +1,5 @@
 import opcodes
-from utils import getLevel, getKey, get_elem_index
+from utils import getLevel, getKey
 import os
 from dot_tree import Tree, build_tree
 
@@ -96,8 +96,7 @@ def is_correct_preprocess_push(b,addresses,blocks_input):
 
 def get_address_from_stacks(addresses,stacks):
     r = []
-    s_aux = map(lambda x: map(lambda y: y[0], x), stacks)
-    for s in s_aux:
+    for s in stacks:
         new = filter(lambda x: x in s,addresses)
         if new not in r:
             r.append(new)
@@ -427,8 +426,9 @@ def clone(block, blocks_input):
     if not v:
         b = preprocess_push2(uncond_block,address,blocks_dict)
     # print b
-        
+#    print "ADDRESS"+str(address)
     in_blocks = compute_push_blocks(b,address,blocks_dict)
+    
     # print "EMPIEZA LA LIMPIEZA"
     clean_in_blocks(in_blocks,address)
     # print in_blocks
@@ -766,25 +766,27 @@ def compute_cloning(blocks_to_clone,blocks_input,stack_info,component_of):
         #print "CLONED: "+str(cloned)+"\n"
 
 
-#####################################################################
-def get_path(block2clone,push_block,jump_block):
-    paths = block2clone.get_paths()
-    i = 0
-    found = False
+# def compute_cloning(blocks_to_clone,blocks_input,stack_info):
+#     global stack_index
     
-    while((i<len(paths)) and (not found)):
-        p = paths[i]
-        init = get_elem_index(p,push_block)
-        fin = get_elem_index (p,jump_block)
+#     init()
+#     blocks_dict = blocks_input
+#     stack_index = stack_info
+    
+#     blocks2clone = sorted(blocks_to_clone, key = getLevel)
 
-        if ((init!=-1) and (fin != -1)) and (init < fin):
-            found = True
+#     print "AQUI"
+#     for e in blocks2clone:
+#         print e.get_start_address()
+#         print e.get_depth_level()
 
-        i+=1
+#     for b in blocks2clone:
+#         clone(b,blocks_dict)
 
+#     # print "AQUI"
+#     # blocks_dict['4416_1'].display()
+#     # for e in blocks_dict.values():
+#     #     e.display()
+#     #return stack_index
 
-    if not found:
-        raise Exception("Path push-jump not found.")
-
-    path = paths[i-1]
-    return path[init:fin+1]
+    
