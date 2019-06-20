@@ -470,3 +470,12 @@ def get_push_value(elem):
         return push_val
     except:
         return elem
+
+def get_elem_index(l,elem):
+    try:
+        p = l.index(elem)
+
+    except:
+        p = -1
+
+    return p
