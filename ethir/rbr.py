@@ -624,77 +624,35 @@ def translateOpcodes50(opcode, value, index_variables,block):
         _ , updated_variables = get_consume_variable(index_variables)
         v1, updated_variables = get_new_variable(updated_variables)
         try:
-            print "OPCODE"
-            print value
             l_idx = get_local_variable(value)
             instr = v1+ " = " + "l(l"+str(l_idx)+")"
             update_local_variables(l_idx,block)
         except ValueError:
             instr = ["ll = " + v1, v1 + " = fresh("+str(new_fid)+")"]
             new_fid+=1
-        # if vertices[block].get_trans_mstore() == False and unknown_mstore == False:
-        #     _ , updated_variables = get_consume_variable(index_variables)
-        #     v1, updated_variables = get_new_variable(updated_variables)
-        #     try:
-        #         l_idx = get_local_variable(value)
-        #         instr = v1+ " = " + "l(l"+str(l_idx)+")"
-        #         update_local_variables(l_idx,block)
-        #     except ValueError:
-        #         instr = ["ll = " + v1, v1 + " = fresh("+str(new_fid)+")"]
-        #         new_fid+=1
-        # else:
-        #     _ , updated_variables = get_consume_variable(index_variables)
-        #     v1, updated_variables = get_new_variable(updated_variables)
-            
-        #     instr = v1 + " = "+ "fresh("+str(new_fid)+")"
-        #     new_fid+=1
-            
              
     elif opcode == "MSTORE":
-        if vertices[block].get_trans_mstore() == False and unknown_mstore == False:
-            v0 , updated_variables = get_consume_variable(index_variables)
-            v1 , updated_variables = get_consume_variable(updated_variables)
-            try:
-                l_idx = get_local_variable(value)
-                instr = "l(l"+str(l_idx)+") = "+ v1
-                update_local_variables(l_idx,block)
-            except ValueError:
-                instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
-                if vertices[block].is_mstore_unknown():
-                    unknown_mstore = True
-        else:
-            v0 , updated_variables = get_consume_variable(index_variables)
-            v1 , updated_variables = get_consume_variable(updated_variables)
-            try:
-                l_idx = get_local_variable(value)
-                instr = "l(l"+str(l_idx)+") = "+ "fresh("+str(new_fid)+")"
-                new_fid+=1
-                update_local_variables(l_idx,block)
-            except ValueError:
-                instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
+        v0 , updated_variables = get_consume_variable(index_variables)
+        v1 , updated_variables = get_consume_variable(updated_variables)
+        try:
+            l_idx = get_local_variable(value)
+            instr = "l(l"+str(l_idx)+") = "+ v1
+            update_local_variables(l_idx,block)
+        except ValueError:
+            instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
+                # if vertices[block].is_mstore_unknown():
+                #     unknown_mstore = True
             
     elif opcode == "MSTORE8":
-        if vertices[block].get_trans_mstore() == False and unknown_mstore == False:
-            v0 , updated_variables = get_consume_variable(index_variables)
-            v1 , updated_variables = get_consume_variable(updated_variables)
-            try:
-                l_idx = get_local_variable(value)
-                instr = "l(l"+str(l_idx)+") = "+ v1
-                update_local_variables(l_idx,block)
-            except ValueError:
-                instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
-                if vertices[block].is_mstore_unknown():
-                    unknown_mstore = True
-        else:
-            v0 , updated_variables = get_consume_variable(index_variables)
-            v1 , updated_variables = get_consume_variable(updated_variables)
-            try:
-                l_idx = get_local_variable(value)
-                instr = "l(l"+str(l_idx)+") = "+ "fresh("+str(new_fid)+")"
-                new_fid+=1
-                update_local_variables(l_idx,block)
-            except ValueError:
-                instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
+        v0 , updated_variables = get_consume_variable(index_variables)
+        v1 , updated_variables = get_consume_variable(updated_variables)
+        try:
+            l_idx = get_local_variable(value)
+            instr = "l(l"+str(l_idx)+") = "+ v1
+            update_local_variables(l_idx,block)
+        except ValueError:
+            instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
+
     elif opcode == "SLOAD":
         _ , updated_variables = get_consume_variable(index_variables)
         v1, updated_variables = get_new_variable(updated_variables)
