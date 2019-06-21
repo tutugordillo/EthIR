@@ -1786,6 +1786,61 @@ def def_signextend_function():
 
 #     return head,f
 
+def mload_fucntion(num_arr):
+    head = "int mload(unsigned int pos);\n"
+
+    f = "int mload(unsigned int pos){\n"
+
+    if num_arr > 0:
+        f = f+"\tif ( p0 == pos ){\n"
+        f = f+"\t\tval = fv0; }\n"
+        f = f+"\t else if (p0 < pos && pos < p0p)\{"
+        f = f+"\t\tval = m0[p0p-p0]; }\n"
+    #We construct the first element
+
+    num -=num_arr-1
+
+    for idx in range(1,num+1):
+        start_idx = "p"+str(idx)
+        end_idx = "p"+str(idx)+"p"
+        first_val = "fv"+str(idx)
+        arr = "m"+str(idx)
+        
+        f = f + "\telse if ("+start_idx+" == pos {\n"
+        f = f + "\t\tval = "+first_val+"; }\n"
+        f = f + "\telse if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+        f = f + "\t\t val = "+arr+"["+end_idx+"-"+start_idx+"]; }\n"
+
+    return head, f
+
+def msotre_fucntion(num_arr):
+    head = "void mstore(unsigned int pos, int val);\n"
+
+    f = "void mstore(unsigned int pos, int val){\n"
+
+    if num_arr > 0:
+        f = f+"\tif ( p0 == pos ){\n"
+        f = f+"\t\tfv0 = val; }\n"
+        f = f+"\t else if (p0 < pos && pos < p0p)\{"
+        f = f+"\t\tm0[p0p-p0]= val; }\n"
+    #We construct the first element
+
+    num -=num_arr-1
+
+    for idx in range(1,num+1):
+        start_idx = "p"+str(idx)
+        end_idx = "p"+str(idx)+"p"
+        first_val = "fv"+str(idx)
+        arr = "m"+str(idx)
+        
+        f = f + "\telse if ("+start_idx+" == pos {\n"
+        f = f + "\t\t"+first_val+" = val; }\n"
+        f = f + "\telse if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+        f = f + "\t\t"+arr+"["+end_idx+"-"+start_idx+"] = val; }\n"
+
+    return head, f
+
+
 def update_stack_vars_global(vs):
     global stack_vars_global
 
