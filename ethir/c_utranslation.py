@@ -1791,12 +1791,13 @@ def mload_fucntion(num_arr):
 
     f = "int mload(unsigned int pos){\n"
 
+    #We construct the first element
+    
     if num_arr > 0:
         f = f+"\tif ( p0 == pos ){\n"
         f = f+"\t\tval = fv0; }\n"
         f = f+"\t else if (p0 < pos && pos < p0p)\{"
         f = f+"\t\tval = m0[p0p-p0]; }\n"
-    #We construct the first element
 
     num -=num_arr-1
 
@@ -1818,12 +1819,13 @@ def msotre_fucntion(num_arr):
 
     f = "void mstore(unsigned int pos, int val){\n"
 
+    #We construct the first element
+    
     if num_arr > 0:
         f = f+"\tif ( p0 == pos ){\n"
         f = f+"\t\tfv0 = val; }\n"
         f = f+"\t else if (p0 < pos && pos < p0p)\{"
         f = f+"\t\tm0[p0p-p0]= val; }\n"
-    #We construct the first element
 
     num -=num_arr-1
 
