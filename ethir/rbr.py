@@ -615,7 +615,6 @@ updated. It also updated the corresponding global variables.
 '''
 def translateOpcodes50(opcode, value, index_variables,block):
     global new_fid
-    global unknown_mstore
     
     if opcode == "POP":        
         v1, updated_variables = get_consume_variable(index_variables)
@@ -623,22 +622,20 @@ def translateOpcodes50(opcode, value, index_variables,block):
     elif opcode == "MLOAD":
         _ , updated_variables = get_consume_variable(index_variables)
         v1, updated_variables = get_new_variable(updated_variables)
-        try:
-            l_idx = get_local_variable(value)
-            instr = v1+ " = " + "l(l"+str(l_idx)+")"
-            update_local_variables(l_idx,block)
-        except ValueError:
+        if value!="?":
+            instr = v1+ " = " + "l(mem_"+str(value)+")"
+            update_local_variables(str(value),block)
+        else:
             instr = ["ll = " + v1, v1 + " = fresh("+str(new_fid)+")"]
             new_fid+=1
              
     elif opcode == "MSTORE":
         v0 , updated_variables = get_consume_variable(index_variables)
         v1 , updated_variables = get_consume_variable(updated_variables)
-        try:
-            l_idx = get_local_variable(value)
-            instr = "l(l"+str(l_idx)+") = "+ v1
-            update_local_variables(l_idx,block)
-        except ValueError:
+        if value != "?":
+            instr = "l(mem_"+str(value)+") = "+ v1
+            update_local_variables(str(value),block)
+        else:
             instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
                 # if vertices[block].is_mstore_unknown():
                 #     unknown_mstore = True
@@ -646,11 +643,10 @@ def translateOpcodes50(opcode, value, index_variables,block):
     elif opcode == "MSTORE8":
         v0 , updated_variables = get_consume_variable(index_variables)
         v1 , updated_variables = get_consume_variable(updated_variables)
-        try:
-            l_idx = get_local_variable(value)
-            instr = "l(l"+str(l_idx)+") = "+ v1
-            update_local_variables(l_idx,block)
-        except ValueError:
+        if value != "?":
+            instr = "l(l"+str(value)+") = "+ v1
+            update_local_variables(value,block)
+        else:
             instr = ["ls(1) = "+ v1, "ls(2) = "+v0]
 
     elif opcode == "SLOAD":
