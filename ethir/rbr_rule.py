@@ -186,9 +186,10 @@ class RBRRule:
     '''
     def build_local_vars(self):
         local_vars = []
-        ordered = sorted(self.arg_local)[::-1]
+        numbers = map(lambda x: int(x),self.arg_local)
+        ordered = sorted(numbers)[::-1]
         for i in ordered:
-            var = "l(l"+str(i)+")"
+            var = "l(mem_"+str(i)+")"
             local_vars.append(var)
         return local_vars
 
