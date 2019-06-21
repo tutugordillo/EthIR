@@ -623,7 +623,7 @@ def translateOpcodes50(opcode, value, index_variables,block):
         _ , updated_variables = get_consume_variable(index_variables)
         v1, updated_variables = get_new_variable(updated_variables)
         if value!="?":
-            instr = v1+ " = " + "l(mem_"+str(value)+")"
+            instr = v1+ " = " + "l(mem"+str(value)+")"
             update_local_variables(str(value),block)
         else:
             instr = ["ll = " + v1, v1 + " = fresh("+str(new_fid)+")"]
@@ -633,7 +633,7 @@ def translateOpcodes50(opcode, value, index_variables,block):
         v0 , updated_variables = get_consume_variable(index_variables)
         v1 , updated_variables = get_consume_variable(updated_variables)
         if value != "?":
-            instr = "l(mem_"+str(value)+") = "+ v1
+            instr = "l(mem"+str(value)+") = "+ v1
             update_local_variables(str(value),block)
         else:
             instr = ["ls(1) = "+ v1, "ls(2) = "+v0]

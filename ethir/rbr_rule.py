@@ -189,7 +189,7 @@ class RBRRule:
         numbers = map(lambda x: int(x),self.arg_local)
         ordered = sorted(numbers)[::-1]
         for i in ordered:
-            var = "l(mem_"+str(i)+")"
+            var = "l(mem"+str(i)+")"
             local_vars.append(var)
         return local_vars
 

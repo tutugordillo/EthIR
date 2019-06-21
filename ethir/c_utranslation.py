@@ -1268,8 +1268,8 @@ def process_instruction(instr,new_instructions,vars_to_declare,cont):
         
     #     new = var0 +" = " var1
 
-    elif instr.find("l(l")!=-1:
-        pos_local = instr.find("l(l")
+    elif instr.find("l(mem")!=-1:
+        pos_local = instr.find("l(mem")
         pos_eq = instr.find("=")
         if pos_eq < pos_local: #it is in the right
             arg0 = instr[:pos_eq].strip()
@@ -1658,11 +1658,12 @@ def initialize_global_variables(rules):
             
     fields_id = r.get_global_arg()[::-1]
     bc_data = r.get_bc()
-    locals_vars = sorted(r.get_args_local())[::-1]
+    numbers_local = map(lambda x: int(x), r.get_args_local())
+    locals_vars = sorted(numbers_local)[::-1]
 
     
     fields = map(lambda x: "\tg"+str(x)+" = __VERIFIER_nondet_uint()",fields_id)
-    l_vars = map(lambda x: "\tl"+str(x)+" = __VERIFIER_nondet_uint()",locals_vars)
+    l_vars = map(lambda x: "\tmem"+str(x)+" = __VERIFIER_nondet_uint()",locals_vars)
     bc = map(lambda x: "\t"+x+" = __VERIFIER_nondet_uint()",bc_data)
 
     if fields != []:
@@ -1700,10 +1701,11 @@ def write_init(rules,execution,cname):
             r = rules[0][0]
         fields_id = r.get_global_arg()[::-1]
         bc_data = r.get_bc()
-        locals_vars = sorted(r.get_args_local())[::-1]
+        numbers_local = map(lambda x: int(x), r.get_args_local())
+        locals_vars = sorted(numbers_local)[::-1]
                                 
         fields = map(lambda x: "unsigned int g"+str(x),fields_id)
-        l_vars = map(lambda x: "unsigned int l"+str(x),locals_vars)
+        l_vars = map(lambda x: "unsigned int mem"+str(x),locals_vars)
         bc = map(lambda x: "unsigned int "+x,bc_data)
         
         
