@@ -113,8 +113,8 @@ def init_globals():
     global vertices
     vertices = {}
 
-    global unknown_mstore
-    unknown_mstore = False
+    # global unknown_mstore
+    # unknown_mstore = False
 
     global blockhash_cont
     blockhash_cont = 0
@@ -1267,12 +1267,15 @@ def compile_block(block):
     global rbr_blocks
     global top_index
     global new_fid
-    global unknown_mstore
+#    global unknown_mstore
     
     cont = 0
     top_index = 0
     new_fid = 0
     finish = False
+    has_lm40 = False #mload mem40
+    has_sm40 = False #mstore mem40
+    
     
     index_variables = block.get_stack_info()[0]-1
     block_id = block.get_start_address()
@@ -1280,7 +1283,9 @@ def compile_block(block):
     rule = RBRRule(block_id, "block",is_string_getter)
     rule.set_index_input(block.get_stack_info()[0])
     l_instr = block.get_instructions()
-    unknown_mstore = False
+#    unknown_mstore = False
+
+
     
     while not(finish) and cont< len(l_instr):
         if block.get_block_type() == "conditional" and is_conditional(l_instr[cont:]):
@@ -1323,7 +1328,10 @@ def compile_block(block):
             rule.add_instr("nop(JUMP)")
         else:
             index_variables = compile_instr(rule,l_instr[cont],
-                                                   index_variables,block.get_list_jumps(),True)        
+                                                   index_variables,block.get_list_jumps(),True)
+            has_lm40 = has_lm40 or is_mload40(l_instr[cont])
+            has_sm40 = has_sm40 or is_mstore40(l_instr[cont])
+            
         cont+=1
 
     if(block.get_block_type()=="falls_to"):
@@ -1338,7 +1346,8 @@ def compile_block(block):
     # if inv:
     #     rule.activate_invalid()
 
-    return rule
+    memory_creation = has_lm40 and has_sm40
+    return rule,memory_creation
 
 
 '''
@@ -1436,7 +1445,34 @@ def check_invalid_options(block,invalid_options):
         inv = (False, "no")
 
     return inv
-            
+
+def is_mload40(opcode):
+    opcode = opcode.split(" ")
+    opcode_name = opcode[0]
+
+    if len(opcode) == 1:
+        return False
+
+    value = opcode[1]
+    if opcode_name == "MLOAD" and value=="64":
+        return True
+    else:
+        return False
+
+def is_mstore40(opcode):
+    opcode = opcode.split(" ")
+    opcode_name = opcode[0]
+
+    if len(opcode) == 1:
+        return False
+
+    value = opcode[1]
+    if opcode_name == "MSTORE" and value == "64":
+        return True
+    else:
+        return False
+
+    
 '''
 Main function that build the rbr representation from the CFG of a solidity file.
 -blocks_input contains a list with the blocks of the CFG. basicblock.py instances.
@@ -1474,10 +1510,14 @@ def evm2rbr_compiler(blocks_input = None, stack_info = None, block_unbuild = Non
     try:
         if blocks_dict and stack_info:
             blocks = sorted(blocks_dict.values(), key = getKey)
+            mem_creation = []
             for block in blocks:
             #if block.get_start_address() not in to_clone:
-                rule = compile_block(block)
+                rule, mem_result = compile_block(block)
 
+                if mem_result:
+                    mem_creation.append(block.get_start_address())
+                    
                 inv = check_invalid_options(block,invalid_options)
                     
                 if inv[0]:
@@ -1517,19 +1557,21 @@ def evm2rbr_compiler(blocks_input = None, stack_info = None, block_unbuild = Non
             ethir_time = end-begin
             print("Build RBR: "+str(ethir_time)+"s")
             store_times(oyente_time,ethir_time)
+
+            print mem_creation
             
             if saco_rbr:
                 saco.rbr2saco(rbr,exe,contract_name)
             if c_rbr == "int":
-                c_translation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm)
+                c_translation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm,mem_creation)
             elif c_rbr == "uint":
-                c_utranslation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm)
+                c_utranslation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm,mem_creation)
             print("*************************************************************")
 
         else :
             print ("Error, you have to provide the CFG associated with the solidity file analyzed")
     except Exception as e:
-        #traceback.print_exc()
+        traceback.print_exc()
         if len(e.args)>1:
             arg = e[1]
             if arg == 5:
