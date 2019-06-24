@@ -1557,8 +1557,6 @@ def evm2rbr_compiler(blocks_input = None, stack_info = None, block_unbuild = Non
             ethir_time = end-begin
             print("Build RBR: "+str(ethir_time)+"s")
             store_times(oyente_time,ethir_time)
-
-            print mem_creation
             
             if saco_rbr:
                 saco.rbr2saco(rbr,exe,contract_name)
