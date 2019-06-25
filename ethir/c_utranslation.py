@@ -1162,6 +1162,37 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         new_instructions.append(new_pre)
         signextend_function = True
         new = instr
+
+    elif instr.find("nop(MLOAD)")!=-1:
+        pre_instr_bad = new_instructions.pop()
+        pre_instr = new_instructions.pop()
+
+        if (pre_instr.find("ll")!=-1):
+            var = pre_instr.split("=")[1].strip()[:-1]
+            new1 = var+" = mload("+var+");"
+            new_instructions.append(new1)
+            
+        else:
+            new_instructions.append(pre_instr)
+            new_instructions.append(pre_instr_bad)
+            
+        new = instr
+
+    elif instr.find("nop(MSTORE")!=-1:
+        pre_instr1 = new_instructions.pop()
+        pre_instr2 = new_instructions.pop()
+
+        if pre_instr1.find("ls")!=-1:
+            var1 = pre_instr1.split("=")[1].strip()[:-1]
+            var2 = pre_instr2.split("=")[1].strip()[:-1]
+            new1 = "mstore("+var1+" , "+var2+");"
+            new_instructions.append(new1)
+            
+        else:
+            new_instructions.append(pre_instr1)
+            new_instructions.append(pre_instr2)
+            
+        new = instr
         
     elif instr.find("nop(")!=-1:
         new = instr
