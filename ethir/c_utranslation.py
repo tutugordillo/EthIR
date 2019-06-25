@@ -1227,7 +1227,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         var2 = unbox_variable(arg2)
 
         #if (svcomp == {}):# or (svcomp["verify"] == "cpa"):
-        if verifier == "cpa":
+        if verifier == "cpa" or svcomp == {}:
             new = var0+" = "+ var1 +" & "+var2
         else:
         #if svcomp!={}:
@@ -1253,7 +1253,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
 
 
         #if (svcomp == {}): #or (svcomp["verify"] == "cpa"):
-        if verifier == "cpa":
+        if verifier == "cpa" or svcomp == {}:
             new = var0+" = "+ var1 +" ^ "+var2
         else:
         #if svcomp!={}:
@@ -1282,7 +1282,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         var2 = unbox_variable(arg2)
 
         #if (svcomp == {}):# or (svcomp["verify"] == "cpa"):
-        if verifier == "cpa":
+        if verifier == "cpa" or svcomp == {}:
             new = var0+" = "+ var1 +" | "+var2
         else:
             new = var0+" = "+get_nondet_svcomp_label()
@@ -1302,7 +1302,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         var1 = unbox_variable(arg1)
 
         #if (svcomp == {}):# or (svcomp["verify"] == "cpa"):
-        if verifier == "cpa":
+        if verifier == "cpa" or svcomp == {}:
             new = var0+" = ~"+ var1
         else:
             new = var0+" = "+get_nondet_svcomp_label()
