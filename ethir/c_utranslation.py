@@ -53,6 +53,18 @@ def init_global_vars():
     global potential_uncalled
     potential_uncalled = []
 
+    global mem_id
+    mem_id = 0
+
+    global mem_init_blocks
+    mem_init_blocks = []
+
+    global mem40_status
+    mem40_status = False
+
+    global init_mem40
+    init_mem40 = "128"
+    
 def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
     global svcomp
     global verifier
@@ -60,13 +72,15 @@ def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
     global blocks2init
     global goto
     global potential_uncalled
-
+    global mem_init_blocks
+    
     init_global_vars()
     potential_uncalled = []
     
     svcomp = svc_labels
     verifier = svc_labels.get("verify","")
-    
+
+    mem_init_blocks = mem_blocks
     begin = dtimer()
 
     if fbm != []:
@@ -85,19 +99,31 @@ def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
             heads = "\n"+head_c+heads
             new_rules.append(rule)
 
+        if verifier == "cpa" and len(mem_blocks)>0:
+            head_mload, mload_f = mload_function(mem_blocks)
+            head_mstore, mstore_f = mstore_function(mem_blocks)
+
+            heads = heads+head_mload+head_mstore
+            new_rules.append(mload_f)
+            new_rules.append(mstore_f)
+            
         if signextend_function:
             head, f = def_signextend_function()
             heads = heads+head
             new_rules.append(f)
-            
-        write_init(rbr,execution,cname)
+
+        
+        ap = map(lambda x: x[1],mem_blocks)
+        num = sum(ap)
+        
+        write_init(rbr,execution,cname,num)
         write(heads,new_rules,execution,cname)
 
         write_main(execution,cname)
         end = dtimer()
         print("C RBR: "+str(end-begin)+"s")
     except:
-        #traceback.print_exc()
+        traceback.print_exc()
         raise Exception("Error in C_trnalsation",6)
 
 def rbr2c_gotos(rbr,scc):
@@ -275,7 +301,7 @@ def translate_block_scc(rule,id_loop,multiple=False):
     cont = rule.get_fresh_index()+1
     instructions = rule.get_instructions()
     has_string_pattern = rule.get_string_getter()
-    new_instructions,variables = process_body_c(instructions,cont,has_string_pattern)
+    new_instructions,variables = process_body_c(rule.get_Id(),instructions,cont,has_string_pattern)
 
     if multiple:
         variables_d = get_variables_to_be_declared(stack_variables,variables,True)
@@ -614,7 +640,7 @@ def translate_scc_multiple(rule,rbr_scc,scc,outer_scc):
     cont = rule.get_fresh_index()+1
     instructions = rule.get_instructions()
     has_string_pattern = rule.get_string_getter()
-    new_instructions,variables = process_body_c(instructions,cont,has_string_pattern)
+    new_instructions,variables = process_body_c(rule.get_Id(),instructions,cont,has_string_pattern)
     
     variables_d = get_variables_to_be_declared(stack_variables,variables,True)
     #var_declarations = "\n"+variables_d+"\n"
@@ -937,7 +963,7 @@ def process_rule_c(rule):
     cont = rule.get_fresh_index()+1
     instructions = rule.get_instructions()
     has_string_pattern = rule.get_string_getter()
-    new_instructions,variables = process_body_c(instructions,cont,has_string_pattern)
+    new_instructions,variables = process_body_c(rule.get_Id(),instructions,cont,has_string_pattern)
     
     variables_d = get_variables_to_be_declared(stack_variables,variables)
     var_declarations = "\n"+variables_d+"\n"
@@ -1030,7 +1056,9 @@ def compute_string_pattern(new_instructions):
     return new_instructions
 
 
-def process_body_c(instructions,cont,has_string_pattern):
+def process_body_c(rule_id,instructions,cont,has_string_pattern):
+    global mem40_status
+
     new_instructions = []
     variables = []
     #    instructions = filter(lambda x: x!= "", instructions)
@@ -1038,6 +1066,7 @@ def process_body_c(instructions,cont,has_string_pattern):
     len_ins = len(instructions)
     
     #for instr in instructions:
+    mem40_status = False
     while(idx_loop<len_ins):
         instr = instructions[idx_loop]
 
@@ -1045,15 +1074,18 @@ def process_body_c(instructions,cont,has_string_pattern):
             new_instructions = compute_string_pattern(new_instructions)
             idx_loop = idx_loop+26
         else:
-            cont = process_instruction(instr,new_instructions,variables,cont)
+            cont = process_instruction(rule_id,instr,new_instructions,variables,cont)
             idx_loop = idx_loop+1
 
     new_instructions = filter(lambda x: x!= "", new_instructions)
     return new_instructions,variables
 
 
-def process_instruction(instr,new_instructions,vars_to_declare,cont):
+def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
     global signextend_function
+    global mem_id
+    global mem40_status
+    global init_mem40
     
     if instr.find("nop(SGT")!=-1:
         pre_instr = new_instructions.pop()
@@ -1271,15 +1303,30 @@ def process_instruction(instr,new_instructions,vars_to_declare,cont):
     elif instr.find("l(mem")!=-1:
         pos_local = instr.find("l(mem")
         pos_eq = instr.find("=")
-        if pos_eq < pos_local: #it is in the right
+        if pos_eq < pos_local: #it is in the right MLOAD
+
             arg0 = instr[:pos_eq].strip()
             var0 = unbox_variable(arg0)
             
             arg1 = instr[pos_eq+1:].strip()
             var1_aux = unbox_variable(arg1)
             var1 = var1_aux[1:]
-            new = var0+" = "+var1
-        else:
+            
+            if verifier == "cpa" and mem_init_blocks !=[]:
+                if var1 == "mem64":
+                    if rule_id in mem_init_blocks:
+                        new1 = var0+" = "+var1+";"
+                        new_instructions.append(new1)
+                        new = "p"+str(mem_id)+" = mem64"
+                        mem40_status = True
+                    else:
+                        new = var0+" = "+var1
+                else:
+                    new = var0+" = mload("+var0+")"
+                
+            else:    
+                new = var0+" = "+var1
+        else: #MSTORE
             arg0 = instr[:pos_eq].strip()
             var0_aux = unbox_variable(arg0)
             var0 = var0_aux[1:]
@@ -1294,7 +1341,42 @@ def process_instruction(instr,new_instructions,vars_to_declare,cont):
             else:
                 arg1 = instr[pos_eq+1:].strip()
                 var1 = unbox_variable(arg1)
-                new = var0+" = "+var1
+
+                if verifier == "cpa" and mem_init_blocks !=[]:
+
+                    if (var0 == "mem64"):
+
+                        if mem40_status and rule_id in mem_init_blocks:
+                        
+                            new1 = var0+" = "+var1+";"
+                            new2 = "p"+str(mem_id)+"p = mem64;"
+                            new3 = "if (p"+str(mem_id)+"p < p"+str(mem_id)+") exit(0);"
+                            new4 = "unsigned int m"+str(mem_id)+"static[p"+str(mem_id)+"p-p"+str(mem_id)+"];"
+
+                            new_instructions.append(new1)
+                            new_instructions.append(new2)
+                            new_instructions.append(new3)
+                            new_instructions.append(new4)
+                            
+                            new = "m"+str(mem_id)+" = m"+str(mem_id)+"static"
+
+                            
+                            mem40_status = False
+                            mem_id = mem_id+1
+
+                        else:
+                            new = var0+" = "+var1
+                            if rule_id == 0:
+                                ins = new_instructions[-4] # We have nops
+                                val = ins.split("=")[-1].strip()[:-1]
+                                init_mem40 = val
+                                
+                    else:
+                        var1p = int(var1[1:])+1
+                        new = "mstore(s"+str(var1p)+" , "+var1+")"
+                    
+                else:
+                    new = var0+" = "+var1
     
     elif instr.find("ls(",0)!=-1:
         pos = instr.find("=")
@@ -1663,7 +1745,11 @@ def initialize_global_variables(rules):
 
     
     fields = map(lambda x: "\tg"+str(x)+" = __VERIFIER_nondet_uint()",fields_id)
-    l_vars = map(lambda x: "\tmem"+str(x)+" = __VERIFIER_nondet_uint()",locals_vars)
+
+    if verifier == "cpa":
+        l_vars = ["\tmem64 = "+init_mem40]
+    else:
+        l_vars = map(lambda x: "\tmem"+str(x)+" = __VERIFIER_nondet_uint()",locals_vars)
     bc = map(lambda x: "\t"+x+" = __VERIFIER_nondet_uint()",bc_data)
 
     if fields != []:
@@ -1681,7 +1767,7 @@ def initialize_global_variables(rules):
     
     return s
 
-def write_init(rules,execution,cname):
+def write_init(rules,execution,cname,num_mem_vars):
     s = "\n"
 
     if svcomp!={}:
@@ -1705,7 +1791,12 @@ def write_init(rules,execution,cname):
         locals_vars = sorted(numbers_local)[::-1]
                                 
         fields = map(lambda x: "unsigned int g"+str(x),fields_id)
-        l_vars = map(lambda x: "unsigned int mem"+str(x),locals_vars)
+
+        if verifier == "cpa":
+            l_vars = ["unsigned int mem64"]
+        else:
+            l_vars = map(lambda x: "unsigned int mem"+str(x),locals_vars)
+
         bc = map(lambda x: "unsigned int "+x,bc_data)
         
         
@@ -1725,6 +1816,10 @@ def write_init(rules,execution,cname):
             s_vars = get_stack_variables(stack_vars_global,True)
             r_vars = get_rest_variables(stack_vars_global,True)    
             s = s+"".join(s_vars)+"".join(r_vars)
+
+        if verifier == "cpa":
+            s = s+"\n"+build_mem_vars(num_mem_vars)
+            
         f.write(s)
         
     f.close()
@@ -1786,7 +1881,11 @@ def def_signextend_function():
 
 #     return head,f
 
-def mload_function(num_arr):
+def mload_function(l):
+    
+    ap = map(lambda x: x[1],l)
+    num_arr = sum(ap)
+    
     head = "unsigned int mload(unsigned int pos);\n"
     f = ""
     f = "unsigned int mload(unsigned int pos){\n"
@@ -1806,14 +1905,18 @@ def mload_function(num_arr):
         first_val = "fv"+str(idx)
         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos {\n"
+        f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\tval = "+first_val+";\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
         f = f + "\t\tval = "+arr+"["+end_idx+"-"+start_idx+"];\n"
     f = f+"\t}\n\treturn val;\n"+"}\n"
     return head, f
 
-def mstore_function(num_arr):
+def mstore_function(l):
+
+    ap = map(lambda x: x[1],l)
+    num_arr = sum(ap)
+    
     head = "void mstore(unsigned int pos, unsigned int val);\n"
 
     f = "void mstore(unsigned int pos, unsigned int val){\n"
@@ -1832,13 +1935,23 @@ def mstore_function(num_arr):
         first_val = "fv"+str(idx)
         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos {\n"
+        f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\t"+first_val+" = val;\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
         f = f + "\t\t"+arr+"["+end_idx+"-"+start_idx+"] = val;\n"
     f = f + "\t}\n}\n"
     return head, f
 
+
+def build_mem_vars(num):    
+    f = ""
+    for i in range(num):
+        f = f + "unsigned int *m"+str(i)+";\n"
+        f = f + "unsigned int fv"+str(i)+";\n"
+        f = f + "unsigned int p"+str(i)+";\n"
+        f = f + "unsigned int p"+str(i)+"p;\n\n"
+
+    return f
 
 
 def update_stack_vars_global(vs):
