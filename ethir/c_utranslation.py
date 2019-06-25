@@ -1189,8 +1189,8 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
             new_instructions.append(new1)
             
         else:
-            new_instructions.append(pre_instr1)
             new_instructions.append(pre_instr2)
+            new_instructions.append(pre_instr1)
             
         new = instr
         
