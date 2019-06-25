@@ -1226,7 +1226,8 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         arg2 = arg12[1].strip()
         var2 = unbox_variable(arg2)
 
-        if (svcomp == {}):# or (svcomp["verify"] == "cpa"):
+        #if (svcomp == {}):# or (svcomp["verify"] == "cpa"):
+        if verifier == "cpa":
             new = var0+" = "+ var1 +" & "+var2
         else:
         #if svcomp!={}:
