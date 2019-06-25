@@ -1587,7 +1587,17 @@ def initialize_globals(rules):
     method = head+vars_init+"}\n"
 
     return head_c, method
-    
+
+def build_mem_vars(num):
+    f = ""
+    for i in range(num):
+        f = f + "int *m"+str(i)+";\n"
+        f = f + "int fv"+str(i)+";\n"
+        f = f + "int p"+str(i)+";\n"
+        f = f + "int p"+str(i)+"p;\n\n"
+
+    return f
+        
 def initialize_global_variables(rules):
 
     s = ""
@@ -1741,7 +1751,7 @@ def mload_function(num_arr):
         first_val = "fv"+str(idx)
         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos {\n"
+        f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\tval = "+first_val+";\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
         f = f + "\t\tval = "+arr+"["+end_idx+"-"+start_idx+"];\n"
@@ -1767,7 +1777,7 @@ def mstore_function(num_arr):
         first_val = "fv"+str(idx)
         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos {\n"
+        f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\t"+first_val+" = val;\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
         f = f + "\t\t"+arr+"["+end_idx+"-"+start_idx+"] = val;\n"
