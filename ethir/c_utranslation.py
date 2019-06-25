@@ -80,7 +80,7 @@ def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
     svcomp = svc_labels
     verifier = svc_labels.get("verify","")
 
-    mem_init_blocks = mem_blocks
+    mem_init_blocks = map(lambda x: x[0],mem_blocks)
     begin = dtimer()
 
     if fbm != []:
