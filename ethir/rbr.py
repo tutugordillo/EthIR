@@ -1283,9 +1283,9 @@ def compile_block(block):
     rule = RBRRule(block_id, "block",is_string_getter)
     rule.set_index_input(block.get_stack_info()[0])
     l_instr = block.get_instructions()
-#    unknown_mstore = False
+    #    unknown_mstore = False
 
-
+    mem_creation = 0
     
     while not(finish) and cont< len(l_instr):
         if block.get_block_type() == "conditional" and is_conditional(l_instr[cont:]):
@@ -1333,7 +1333,12 @@ def compile_block(block):
             has_sm40 = has_sm40 or is_mstore40(l_instr[cont])
             
         cont+=1
-
+        
+        if has_lm40 and has_sm40:
+            mem_creation += 1
+            has_lm40 = False
+            has_sm40 = False
+        
     if(block.get_block_type()=="falls_to"):
         instr = process_falls_to_blocks(index_variables,block.get_falls_to())
         rule.set_call_to(block.get_falls_to())
@@ -1346,8 +1351,7 @@ def compile_block(block):
     # if inv:
     #     rule.activate_invalid()
 
-    memory_creation = has_lm40 and has_sm40
-    return rule,memory_creation
+    return rule,mem_creation
 
 
 '''
@@ -1515,8 +1519,8 @@ def evm2rbr_compiler(blocks_input = None, stack_info = None, block_unbuild = Non
             #if block.get_start_address() not in to_clone:
                 rule, mem_result = compile_block(block)
 
-                if mem_result:
-                    mem_creation.append(block.get_start_address())
+                if mem_result>0:
+                    mem_creation.append((block.get_start_address(),mem_result))
                     
                 inv = check_invalid_options(block,invalid_options)
                     
