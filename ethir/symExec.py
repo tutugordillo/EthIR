@@ -1607,11 +1607,17 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             first = stack.pop(0)
             second = stack.pop(0)
 
-            first = get_push_value(first)
-            second = get_push_value(second)
+            first_aux = get_push_value(first)
+            second_aux = get_push_value(second)
             
-            computed = first & second
-            #computed = simplify(computed) if is_expr(computed) else computed
+            computed = first_aux & second_aux
+
+            if computed == first_aux:
+                computed = first
+            elif computed == second_aux:
+                computed = second
+            
+                #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
         else:
             raise ValueError('STACK underflow')
@@ -1621,10 +1627,15 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             first = stack.pop(0)
             second = stack.pop(0)
 
-            first = get_push_value(first)
-            second = get_push_value(second)
+            first_aux = get_push_value(first)
+            second_aux = get_push_value(second)
             
-            computed = first | second
+            computed = first_aux | second_aux
+
+            if computed == first_aux:
+                computed = first
+            elif computed == second_aux:
+                computed = second
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
 
@@ -1636,10 +1647,15 @@ def sym_exec_ins(params, block, instr, func_call,stack_first,instr_index):
             first = stack.pop(0)
             second = stack.pop(0)
 
-            first = get_push_value(first)
-            second = get_push_value(second)
-            
-            computed = first ^ second
+            first_aux = get_push_value(first)
+            second_aux = get_push_value(second)
+
+            computed = first_aux ^ second_aux
+
+            if computed == first_aux:
+                computed = first
+            elif computed == second_aux:
+                computed = second
             #computed = simplify(computed) if is_expr(computed) else computed
             stack.insert(0, computed)
 
