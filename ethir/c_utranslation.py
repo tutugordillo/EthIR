@@ -1781,7 +1781,7 @@ def initialize_global_variables(rules):
     
     fields = map(lambda x: "\tg"+str(x)+" = __VERIFIER_nondet_uint()",fields_id)
 
-    if verifier == "cpa":
+    if verifier == "cpa" and mem_init_blocks != []:
         l_vars = ["\tmem64 = "+init_mem40]
     else:
         l_vars = map(lambda x: "\tmem"+str(x)+" = __VERIFIER_nondet_uint()",locals_vars)
@@ -1827,7 +1827,7 @@ def write_init(rules,execution,cname,num_mem_vars):
                                 
         fields = map(lambda x: "unsigned int g"+str(x),fields_id)
 
-        if verifier == "cpa":
+        if verifier == "cpa" and mem_init_blocks != []:
             l_vars = ["unsigned int mem64"]
         else:
             l_vars = map(lambda x: "unsigned int mem"+str(x),locals_vars)
