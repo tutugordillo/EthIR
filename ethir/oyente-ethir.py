@@ -129,8 +129,11 @@ def analyze_disasm_bytecode():
         svc_options={}
         if args.verify:
             svc_options["verify"]=args.verify
+            
         if args.invalid:
             svc_options["invalid"]=args.invalid
+        else:
+            svc_options["invalid"]="all"
             
         result, exit_code = symExec.run(disasm_file=args.source,cfg = args.control_flow_graph,saco = args.saco,debug = args.debug,evm_version = evm_version_modifications,cfile = args.cfile,svc=svc_options,go = args.goto)
     else:
@@ -160,7 +163,9 @@ def analyze_bytecode():
             svc_options["verify"]=args.verify
         if args.invalid:
             svc_options["invalid"]=args.invalid
-        
+        else:
+            svc_options["invalid"]="all"
+            
         result, exit_code = symExec.run(disasm_file=inp['disasm_file'],cfg = args.control_flow_graph,saco = args.saco,debug = args.debug,evm_version = evm_version_modifications,cfile = args.cfile,svc=svc_options,go = args.goto)
         helper.rm_tmp_files()
     else:
@@ -179,11 +184,15 @@ def run_solidity_analysis(inputs,hashes):
     i = 0
     r = check_c_translation_dependencies()
     svc_options={}
+
     if args.verify:
         svc_options["verify"]=args.verify
+
     if args.invalid:
         svc_options["invalid"]=args.invalid
-
+    else:
+        svc_options["invalid"]="all"
+        
     if len(inputs) == 1 and r:
         inp = inputs[0]
         function_names = hashes[inp["c_name"]]
