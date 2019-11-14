@@ -1929,7 +1929,7 @@ def mload_function(l):
     f = f+"\tif ( p0 == pos ){\n"
     f = f+"\t\tval = fv0;\n"
     f = f+"\t}else if (p0 < pos && pos < p0p){\n"
-    f = f+"\t\tval = m0[p0p-p0];\n"
+    f = f+"\t\tval = m0[pos-p0];\n"
     #We construct the first element
 
     num =num_arr-1
@@ -1943,7 +1943,7 @@ def mload_function(l):
         f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\tval = "+first_val+";\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
-        f = f + "\t\tval = "+arr+"["+end_idx+"-"+start_idx+"];\n"
+        f = f + "\t\tval = "+arr+"[pos-"+start_idx+"];\n"
     f = f+"\t}\n\treturn val;\n"+"}\n"
     return head, f
 
@@ -1959,7 +1959,7 @@ def mstore_function(l):
     f = f+"\tif ( p0 == pos ){\n"
     f = f+"\t\tfv0 = val;\n"
     f = f+"\t}else if (p0 < pos && pos < p0p){\n"
-    f = f+"\t\tm0[p0p-p0]= val;\n"
+    f = f+"\t\tm0[pos-p0]= val;\n"
     #We construct the first element
 
     num =num_arr-1
@@ -1973,7 +1973,7 @@ def mstore_function(l):
         f = f + "\t}else if ("+start_idx+" == pos) {\n"
         f = f + "\t\t"+first_val+" = val;\n"
         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
-        f = f + "\t\t"+arr+"["+end_idx+"-"+start_idx+"] = val;\n"
+        f = f + "\t\t"+arr+"[pos-"+start_idx+"] = val;\n"
     f = f + "\t}\n}\n"
     return head, f
 
