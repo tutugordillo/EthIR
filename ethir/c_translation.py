@@ -68,7 +68,23 @@ def init_global_vars():
     global init_mem40
     init_mem40 = "128"
 
-def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
+    # Keys: id of the different specialized mload and mstore
+    #Values: ids of the mem variables (intervals) involved in the
+    # corresponding memory instructions
+    
+    global memory_id_spec
+    memory_id_spec = {}
+
+    global meminstr_id
+    meminstr_id = 0
+
+
+    # Keys: block id
+    #Values: mem_var ids (p1,p2,...) declared in this block
+    global mem_vars_per_block
+    mem_vars_per_block = {}
+    
+def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
     global svcomp
     global verifier
     global init_globals
@@ -1082,6 +1098,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
     global mem_id
     global mem40_status
     global init_mem40
+    global mem_vars_per_block
     
     if instr.find("nop(SIGNEXTEND")!=-1:
         pre_instr = new_instructions.pop()
@@ -1327,7 +1344,11 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
                             new_instructions.append(new2)
                             new_instructions.append(new3)
                             new_instructions.append(new4)
-                            
+
+                            declared_vars = mem_vars_per_block.get(rule_id,[])
+                            declared_vars.append(mem_id)
+                            mem_vars_per_block[rule_id] = declared_vars
+                                                   
                             new = "m"+str(mem_id)+" = m"+str(mem_id)+"static"
 
                             
