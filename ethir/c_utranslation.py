@@ -65,7 +65,7 @@ def init_global_vars():
     global init_mem40
     init_mem40 = "128"
     
-def rbr2c(rbr,execution,cname,scc,svc_labels,gotos,fbm,mem_blocks):
+def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
     global svcomp
     global verifier
     global init_globals

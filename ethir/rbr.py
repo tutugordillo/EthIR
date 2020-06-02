@@ -1565,9 +1565,9 @@ def evm2rbr_compiler(blocks_input = None, stack_info = None, block_unbuild = Non
             if saco_rbr:
                 saco.rbr2saco(rbr,exe,contract_name)
             if c_rbr == "int":
-                c_translation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm,mem_creation)
+                c_translation.rbr2c(rbr,exe,contract_name,component_of,scc,svc_labels,gotos,fbm,mem_creation)
             elif c_rbr == "uint":
-                c_utranslation.rbr2c(rbr,exe,contract_name,scc,svc_labels,gotos,fbm,mem_creation)
+                c_utranslation.rbr2c(rbr,exe,contract_name,component_of,scc,svc_labels,gotos,fbm,mem_creation)
             print("*************************************************************")
 
         else :
