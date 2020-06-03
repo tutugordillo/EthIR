@@ -78,11 +78,14 @@ def init_global_vars():
     global meminstr_id
     meminstr_id = 0
 
-
     # Keys: block id
     #Values: mem_var ids (p1,p2,...) declared in this block
     global mem_vars_per_block
     mem_vars_per_block = {}
+
+    global components
+    components = {}
+    
     
 def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
     global svcomp
@@ -92,7 +95,7 @@ def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
     global goto
     global potential_uncalled
     global mem_init_blocks
-
+    global components
     
     init_global_vars()
     potential_uncalled = []
@@ -100,6 +103,10 @@ def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
     svcomp = svc_labels
     verifier = svc_labels.get("verify","")
 
+    components = component_of
+
+    create_mem_variables(mem_blocks)
+    
     mem_init_blocks = map(lambda x: x[0], mem_blocks)
     begin = dtimer()
 
@@ -119,6 +126,9 @@ def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
             heads = "\n"+head_c+heads
             new_rules.append(rule)
 
+
+        print memory_id_spec
+        
         if verifier == "cpa" and len(mem_blocks)>0:
             head_mload, mload_f = mload_function(mem_blocks)
             head_mstore, mstore_f = mstore_function(mem_blocks)
@@ -137,8 +147,6 @@ def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
             heads = heads+head
             new_rules.append(f)
             
-
-
         ap = map(lambda x: x[1],mem_blocks)
         num = sum(ap)
 
@@ -1069,6 +1077,7 @@ def compute_string_pattern(new_instructions):
 
 def process_body_c(rule_id,instructions,cont,has_string_pattern):
     global mem40_status
+    global mem_id
     
     new_instructions = []
     variables = []
@@ -1077,6 +1086,10 @@ def process_body_c(rule_id,instructions,cont,has_string_pattern):
     len_ins = len(instructions)
 
     mem40_status = False
+    mem_id = 0
+    mem_already_defined = []
+
+    
     #for instr in instructions:
     while(idx_loop<len_ins):
         instr = instructions[idx_loop]
@@ -1085,14 +1098,14 @@ def process_body_c(rule_id,instructions,cont,has_string_pattern):
             new_instructions = compute_string_pattern(new_instructions)
             idx_loop = idx_loop+26
         else:
-            cont = process_instruction(rule_id,instr,new_instructions,variables,cont)
+            cont = process_instruction(rule_id,instr,new_instructions,variables,cont,mem_already_defined)
             idx_loop = idx_loop+1
 
     new_instructions = filter(lambda x: x!= "", new_instructions)
     return new_instructions,variables
 
 
-def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
+def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont,mem_defined):
     global signextend_function
     global exp_function
     global mem_id
@@ -1121,7 +1134,21 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
 
         if (pre_instr.find("ll")!=-1):
             var = pre_instr.split("=")[1].strip()[:-1]
-            new1 = var+" = mload("+var+");"
+
+            if rule_id in mem_init_blocks:
+                already_def = get_already_def_memvars(rule_id)
+                vars_declared = mem_vars_per_block[rule_id]
+                memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
+                already_def_mem = memvars_otherblock+ mem_defined
+            else:
+                already_def_mem = get_already_def_memvars(rule_id)
+
+            # print "mload"
+            # print already_def_mem
+            # print "*/*/*/*/*/*/*/*/"
+            mload_id = get_mem_instruction_identifier(already_def_mem)
+
+            new1 = var+" = mload"+str(mload_id)+"("+var+");"
             new_instructions.append(new1)
             
         else:
@@ -1137,7 +1164,16 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
         if pre_instr1.find("ls")!=-1:
             var1 = pre_instr1.split("=")[1].strip()[:-1]
             var2 = pre_instr2.split("=")[1].strip()[:-1]
-            new1 = "mstore("+var1+" , "+var2+");"
+            if rule_id in mem_init_blocks:
+                already_def = get_already_def_memvars(rule_id)
+                vars_declared = mem_vars_per_block[rule_id]
+                memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
+                already_def_mem = memvars_otherblock+ mem_defined
+            else:
+                already_def_mem = get_already_def_memvars(rule_id)
+                
+            mstore_id = get_mem_instruction_identifier(already_def_mem)
+            new1 = "mstore"+str(mstore_id)+"("+var1+" , "+var2+");"
             new_instructions.append(new1)
             
         else:
@@ -1304,13 +1340,31 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
                     if rule_id in mem_init_blocks:
                         new1 = var0+" = "+var1+";"
                         new_instructions.append(new1)
-                        new = "p"+str(mem_id)+" = mem64"
+                        id_var = mem_vars_per_block[rule_id] 
+                        new = "p"+str(id_var[mem_id])+" = mem64"
                         mem40_status = True
+                        mem_defined.append(id_var[mem_id])
+                        
                     else:
                         new = var0+" = "+var1
                 else:
-                    new = var0+" = mload("+var0+")"
-                
+                    if rule_id in mem_init_blocks:
+                        already_def = get_already_def_memvars(rule_id)
+                        vars_declared = mem_vars_per_block[rule_id]
+                        memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
+                        already_def_mem = memvars_otherblock+ mem_defined
+                    else:
+                        already_def_mem = get_already_def_memvars(rule_id)
+
+
+                    # print "mload"
+                    # print already_def_mem
+                    # print "*/*/*/*/*/*/*/*/"
+
+                    mload_id = get_mem_instruction_identifier(already_def_mem)
+
+                    new = var0+" = mload"+str(mload_id)+"("+var0+")"
+
             else:    
                 new = var0+" = "+var1
         else: #MSTORE
@@ -1334,22 +1388,20 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
                     if (var0 == "mem64"):
 
                         if mem40_status and rule_id in mem_init_blocks:
-                        
+
+                            id_var = mem_vars_per_block[rule_id]
+                            
                             new1 = var0+" = "+var1+";"
-                            new2 = "p"+str(mem_id)+"p = mem64;"
-                            new3 = "if (p"+str(mem_id)+"p < p"+str(mem_id)+") exit(0);"
-                            new4 = "unsigned int m"+str(mem_id)+"static[p"+str(mem_id)+"p-p"+str(mem_id)+"];"
+                            new2 = "p"+str(id_var[mem_id])+"p = mem64;"
+                            new3 = "if (p"+str(id_var[mem_id])+"p < p"+str(id_var[mem_id])+") exit(0);"
+                            new4 = "unsigned int m"+str(id_var[mem_id])+"static[p"+str(id_var[mem_id])+"p-p"+str(id_var[mem_id])+"];"
 
                             new_instructions.append(new1)
                             new_instructions.append(new2)
                             new_instructions.append(new3)
                             new_instructions.append(new4)
-
-                            declared_vars = mem_vars_per_block.get(rule_id,[])
-                            declared_vars.append(mem_id)
-                            mem_vars_per_block[rule_id] = declared_vars
                                                    
-                            new = "m"+str(mem_id)+" = m"+str(mem_id)+"static"
+                            new = "m"+str(id_var[mem_id])+" = m"+str(id_var[mem_id])+"static"
 
                             
                             mem40_status = False
@@ -1363,8 +1415,23 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont):
                                 init_mem40 = val
                                 
                     else:
+
+                        if rule_id in mem_init_blocks:
+                            already_def = get_already_def_memvars(rule_id)
+                            vars_declared = mem_vars_per_block[rule_id]
+                            memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
+                            already_def_mem = memvars_otherblock+ mem_defined
+                        else:
+                            already_def_mem = get_already_def_memvars(rule_id)
+                        
+                        mstore_id = get_mem_instruction_identifier(already_def_mem)
+                        
                         var1p = int(var1[1:])+1
-                        new = "mstore(s"+str(var1p)+" , "+var1+")"
+                        print "mstore"
+                        print already_def_mem
+                        print "*/*/*/*/*/*/*/*/"
+
+                        new = "mstore"+str(mstore_id)+"(s"+str(var1p)+" , "+var1+")"
                     
                 else:
                     new = var0+" = "+var1
@@ -1992,3 +2059,51 @@ def write(head,rules,execution,cname):
             f.write(rule+"\n")
 
     f.close()
+
+def create_mem_variables(mem_blocks):
+    global mem_id
+    global mem_vars_per_block
+    
+    for block, number in mem_blocks:
+        vars_id = range(mem_id,mem_id+number)
+        mem_vars_per_block[block] = vars_id
+        mem_id+=number
+        print block
+        print vars_id
+
+    print mem_vars_per_block
+    
+def get_already_def_memvars(block_id):
+    c_component = components[block_id]
+    blocks_dec = mem_vars_per_block.keys()
+
+    blocks_with_mem = filter(lambda x: x in blocks_dec,c_component)
+    already_def = []
+    for b in blocks_with_mem:
+        already_def+=mem_vars_per_block[b]
+
+    return already_def
+
+def get_mem_instruction_identifier(already_def):
+    global memory_id_spec
+    global meminstr_id
+
+    found = False
+    elems = memory_id_spec.items()
+
+    if elems == []:
+        memory_id_spec[meminstr_id] = already_def
+        result = meminstr_id
+        meminstr_id+=1
+    else:
+        for mem_id,vars_def in elems:
+            if vars_def == already_def:
+                result = mem_id
+                found = True
+
+        if not found:
+            memory_id_spec[meminstr_id] = already_def
+            result = meminstr_id
+            meminstr_id+=1
+
+    return result
