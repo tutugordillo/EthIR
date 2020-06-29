@@ -1985,11 +1985,11 @@ def mload_functions():
             int_val = mvars[3:].strip()
             if not is_first:
                 f = f+"\tif ( pos == "+int_val+" ){\n"
-                f = f+"\t\tval = "+mvars+";\n"
+                f = f+"\t\tval = p"+mvars+";\n"
                 is_first = True
             else:
                 f = f+"\t}else if ( pos == "+int_val+" ){\n"
-                f = f+"\t\tval = "+mvars+";\n"
+                f = f+"\t\tval = p"+mvars+";\n"
 
         interval_vars = filter(lambda x: not str(x).startswith("mem"),values)
         for x in interval_vars:
@@ -2062,11 +2062,11 @@ def mstore_functions():
             int_val = mvars[3:].strip()
             if not is_first:
                 f = f+"\tif ( pos == "+int_val+" ){\n"
-                f = f+"\t\t"+mvars+" = val;\n"
+                f = f+"\t\tp"+mvars+" = val;\n"
                 is_first = True
             else:
                 f = f+"\t}else if ( pos == "+int_val+" ){\n"
-                f = f+"\t\t"+mvars+" = val;\n"
+                f = f+"\t\tp"+mvars+" = val;\n"
 
         interval_vars = filter(lambda x: not str(x).startswith("mem"),values)
         for x in interval_vars:
