@@ -83,6 +83,9 @@ def init_global_vars():
     global mem_vars_per_block
     mem_vars_per_block = {}
 
+    global non_interval_memvars
+    non_interval_memvars = []
+    
     global components
     components = {}
     
@@ -127,11 +130,11 @@ def rbr2c(rbr,execution,cname,component_of,scc,svc_labels,gotos,fbm,mem_blocks):
             new_rules.append(rule)
 
 
-        print memory_id_spec
+        # print memory_id_spec
         
         if verifier == "cpa" and len(mem_blocks)>0:
-            head_mload, mload_f = mload_function(mem_blocks)
-            head_mstore, mstore_f = mstore_function(mem_blocks)
+            head_mload, mload_f = mload_functions()
+            head_mstore, mstore_f = mstore_functions()
 
             heads = heads+head_mload+head_mstore
             new_rules.append(mload_f)
@@ -1112,6 +1115,7 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont,mem
     global mem40_status
     global init_mem40
     global mem_vars_per_block
+    global non_interval_memvars
     
     if instr.find("nop(SIGNEXTEND")!=-1:
         pre_instr = new_instructions.pop()
@@ -1354,7 +1358,20 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont,mem
                         memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
                         already_def_mem = memvars_otherblock+ mem_defined
                     else:
+                        al = []
+                        if var1.startswith("mem"):
+                            if var1 not in non_interval_memvars:
+                                non_interval_memvars.append(var1)
+                                    
+                            al = mem_vars_per_block.get(rule_id,[])
+                            if var1 not in al:
+                                al.append(var1);
+                            mem_vars_per_block[rule_id] = al
+
                         already_def_mem = get_already_def_memvars(rule_id)
+                        for x in al:
+                            if x not in already_def_mem:
+                                already_def_mem.append(x)
 
 
                     # print "mload"
@@ -1422,14 +1439,30 @@ def process_instruction(rule_id, instr,new_instructions,vars_to_declare,cont,mem
                             memvars_otherblock = filter(lambda x: x not in vars_declared,already_def)
                             already_def_mem = memvars_otherblock+ mem_defined
                         else:
+                            # print "*-*-*--*-*--*-"
+                            # print "NO"
+                            # print rule_id
+                            # print var0
+                            if var0.startswith("mem"):
+                                if var0 not in non_interval_memvars:
+                                    non_interval_memvars.append(var0)
+                                    
+                                al = mem_vars_per_block.get(rule_id,[])
+                                if var0 not in al:
+                                    al.append(var0);
+                                    mem_vars_per_block[rule_id] = al
+                                
                             already_def_mem = get_already_def_memvars(rule_id)
-                        
+                            for x in al:
+                                if x not in already_def_mem:
+                                    already_def_mem.append(x)
+                            
                         mstore_id = get_mem_instruction_identifier(already_def_mem)
                         
                         var1p = int(var1[1:])+1
-                        print "mstore"
-                        print already_def_mem
-                        print "*/*/*/*/*/*/*/*/"
+                        # print "mstore"
+                        # print already_def_mem
+                        # print "*/*/*/*/*/*/*/*/"
 
                         new = "mstore"+str(mstore_id)+"(s"+str(var1p)+" , "+var1+")"
                     
@@ -1786,16 +1819,6 @@ def initialize_globals(rules):
     method = head+vars_init+"}\n"
 
     return head_c, method
-
-def build_mem_vars(num):
-    f = ""
-    for i in range(num):
-        f = f + "int *m"+str(i)+";\n"
-        f = f + "int fv"+str(i)+";\n"
-        f = f + "int p"+str(i)+";\n"
-        f = f + "int p"+str(i)+"p;\n\n"
-
-    return f
         
 def initialize_global_variables(rules):
 
@@ -1943,70 +1966,170 @@ def def_exp_function():
 
     return head,f
 
-def mload_function(l):
 
-    ap = map(lambda x: x[1],l)
-    num_arr = sum(ap)
-    
-    head = "int mload(int pos);\n"
+def mload_functions():
+    head = ""
     f = ""
-    f = "int mload(int pos){\n"
     
-    f = f+"\tint val;\n\n"
-    f = f+"\tif ( p0 == pos ){\n"
-    f = f+"\t\tval = fv0;\n"
-    f = f+"\t}else if (p0 < pos && pos < p0p){\n"
-    f = f+"\t\tval = m0[pos-p0];\n"
-    #We construct the first element
+    for a in memory_id_spec.keys():
+        head = head+"int mload"+str(a)+"(int pos);\n"
 
-    num =num_arr-1
 
-    for idx in range(1,num+1):
-        start_idx = "p"+str(idx)
-        end_idx = "p"+str(idx)+"p"
-        first_val = "fv"+str(idx)
-        arr = "m"+str(idx)
+        f = f+"int mload"+str(a)+"(int pos){\n"
+        f = f+"\tint val;\n\n"
+
+        values = memory_id_spec[a]
+        non_interval = filter(lambda x: str(x).startswith("mem"),values)
+        is_first = False
+        for mvars in non_interval:
+            int_val = mvars[3:].strip()
+            if not is_first:
+                f = f+"\tif ( pos == "+int_val+" ){\n"
+                f = f+"\t\tval = "+mvars+";\n"
+                is_first = True
+            else:
+                f = f+"\t}else if ( pos == "+int_val+" ){\n"
+                f = f+"\t\tval = "+mvars+";\n"
+
+        interval_vars = filter(lambda x: not str(x).startswith("mem"),values)
+        for x in interval_vars:
+            start_idx = "p"+str(x)
+            end_idx = "p"+str(x)+"p"
+            first_val = "fv"+str(x)
+            arr = "m"+str(x)
+
+            if not is_first:
+                f = f + "\t}if ("+start_idx+" == pos) {\n"
+                f = f + "\t\tval = "+first_val+";\n"
+                is_first = True
+            else:
+                f = f + "\t}else if ("+start_idx+" == pos) {\n"
+                f = f + "\t\tval = "+first_val+";\n"
+
+            f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+            f = f + "\t\tval = "+arr+"[pos-"+start_idx+"];\n"
+        f = f+"\t}\n\treturn val;\n"+"}\n"
+
+    return head, f
+            
+# def mload_function(l):
+
+#     memory_id_spec.keys
+    
+#     ap = map(lambda x: x[1],l)
+#     num_arr = sum(ap)
+    
+#     head = "int mload(int pos);\n"
+#     f = ""
+#     f = "int mload(int pos){\n"
+    
+#     f = f+"\tint val;\n\n"
+#     f = f+"\tif ( p0 == pos ){\n"
+#     f = f+"\t\tval = fv0;\n"
+#     f = f+"\t}else if (p0 < pos && pos < p0p){\n"
+#     f = f+"\t\tval = m0[pos-p0];\n"
+#     #We construct the first element
+
+#     num =num_arr-1
+
+#     for idx in range(1,num+1):
+#         start_idx = "p"+str(idx)
+#         end_idx = "p"+str(idx)+"p"
+#         first_val = "fv"+str(idx)
+#         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos) {\n"
-        f = f + "\t\tval = "+first_val+";\n"
-        f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
-        f = f + "\t\tval = "+arr+"[pos-"+start_idx+"];\n"
-    f = f+"\t}\n\treturn val;\n"+"}\n"
+#         f = f + "\t}else if ("+start_idx+" == pos) {\n"
+#         f = f + "\t\tval = "+first_val+";\n"
+#         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+#         f = f + "\t\tval = "+arr+"[pos-"+start_idx+"];\n"
+#     f = f+"\t}\n\treturn val;\n"+"}\n"
+#     return head, f
+
+
+def mstore_functions():
+    head = ""
+    f = ""
+    
+    for a in memory_id_spec.keys():
+        head = head+"void mstore"+str(a)+"(int pos, int val);\n"
+
+        f = f +"void mstore"+str(a)+"(int pos, int val){\n"
+
+        values = memory_id_spec[a]
+        non_interval = filter(lambda x: str(x).startswith("mem"),values)
+        is_first = False
+        for mvars in non_interval:
+            int_val = mvars[3:].strip()
+            if not is_first:
+                f = f+"\tif ( pos == "+int_val+" ){\n"
+                f = f+"\t\t"+mvars+" = val;\n"
+                is_first = True
+            else:
+                f = f+"\t}else if ( pos == "+int_val+" ){\n"
+                f = f+"\t\t"+mvars+" = val;\n"
+
+        interval_vars = filter(lambda x: not str(x).startswith("mem"),values)
+        for x in interval_vars:
+            start_idx = "p"+str(x)
+            end_idx = "p"+str(x)+"p"
+            first_val = "fv"+str(x)
+            arr = "m"+str(x)
+
+            if not is_first:
+                f = f + "\t}if ("+start_idx+" == pos) {\n"
+                f = f + "\t\t"+first_val+" = val;\n"
+                is_first = True
+            else:
+                f = f + "\t}else if ("+start_idx+" == pos) {\n"
+                f = f + "\t\t"+first_val+" = val;\n"
+
+            f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+            f = f + "\t\t"+arr+"[pos-"+start_idx+"] = val;\n"
+        f = f + "\t}\n}\n"
+
     return head, f
 
-def mstore_function(l):
 
-    ap = map(lambda x: x[1],l)
-    num_arr = sum(ap)
+# def mstore_function(l):
+
+#     ap = map(lambda x: x[1],l)
+#     num_arr = sum(ap)
     
-    head = "void mstore(int pos, int val);\n"
+#     head = "void mstore(int pos, int val);\n"
 
-    f = "void mstore(int pos, int val){\n"
+#     f = "void mstore(int pos, int val){\n"
 
-    f = f+"\tif ( p0 == pos ){\n"
-    f = f+"\t\tfv0 = val;\n"
-    f = f+"\t}else if (p0 < pos && pos < p0p){\n"
-    f = f+"\t\tm0[pos-p0]= val;\n"
-    #We construct the first element
+#     f = f+"\tif ( p0 == pos ){\n"
+#     f = f+"\t\tfv0 = val;\n"
+#     f = f+"\t}else if (p0 < pos && pos < p0p){\n"
+#     f = f+"\t\tm0[pos-p0]= val;\n"
+#     #We construct the first element
 
-    num =num_arr-1
+#     num =num_arr-1
 
-    for idx in range(1,num+1):
-        start_idx = "p"+str(idx)
-        end_idx = "p"+str(idx)+"p"
-        first_val = "fv"+str(idx)
-        arr = "m"+str(idx)
+#     for idx in range(1,num+1):
+#         start_idx = "p"+str(idx)
+#         end_idx = "p"+str(idx)+"p"
+#         first_val = "fv"+str(idx)
+#         arr = "m"+str(idx)
         
-        f = f + "\t}else if ("+start_idx+" == pos) {\n"
-        f = f + "\t\t"+first_val+" = val;\n"
-        f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
-        f = f + "\t\t"+arr+"[pos-"+start_idx+"] = val;\n"
-    f = f + "\t}\n}\n"
-    return head, f
+#         f = f + "\t}else if ("+start_idx+" == pos) {\n"
+#         f = f + "\t\t"+first_val+" = val;\n"
+#         f = f + "\t}else if ("+start_idx+" < pos && pos < "+end_idx+") {\n"
+#         f = f + "\t\t"+arr+"[pos-"+start_idx+"] = val;\n"
+#     f = f + "\t}\n}\n"
+#     return head, f
         
 
 def build_mem_vars(num):    
     f = ""
+
+    non_interval_memvars.sort()
+    for i in non_interval_memvars:
+        f = f + "unsigned int p"+i+";\n"
+
+    f+="\n"
+
     for i in range(num):
         f = f + "unsigned int *m"+str(i)+";\n"
         f = f + "unsigned int fv"+str(i)+";\n"
@@ -2068,10 +2191,10 @@ def create_mem_variables(mem_blocks):
         vars_id = range(mem_id,mem_id+number)
         mem_vars_per_block[block] = vars_id
         mem_id+=number
-        print block
-        print vars_id
+        # print block
+        # print vars_id
 
-    print mem_vars_per_block
+    # print mem_vars_per_block
     
 def get_already_def_memvars(block_id):
     c_component = components[block_id]
@@ -2080,8 +2203,12 @@ def get_already_def_memvars(block_id):
     blocks_with_mem = filter(lambda x: x in blocks_dec,c_component)
     already_def = []
     for b in blocks_with_mem:
-        already_def+=mem_vars_per_block[b]
+        m_block = mem_vars_per_block[b]
+        new_mem_vars = filter(lambda x: x not in already_def,m_block)
+        already_def+=new_mem_vars
 
+    # own = mem_vars_per_block.get(block_id,[])
+    # already_def+=own
     return already_def
 
 def get_mem_instruction_identifier(already_def):
@@ -2091,6 +2218,8 @@ def get_mem_instruction_identifier(already_def):
     found = False
     elems = memory_id_spec.items()
 
+    already_def.sort()
+    
     if elems == []:
         memory_id_spec[meminstr_id] = already_def
         result = meminstr_id
